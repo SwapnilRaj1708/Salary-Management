@@ -12,19 +12,20 @@ where the human stays in control.
 
 ## Principles
 
-1. **The human owns decisions.** The AI drafts, compares options and critiques. The
-   candidate chooses, and the choices and reasons are recorded in
-   [decisions.md](../decisions.md).
-2. **Claims get verified, not trusted.** Wherever possible, technical claims were checked
-   by running code against the exact package versions: SQLite behaviour, Express 5
+1. **The human owns decisions.** Agents draft and critique options and propose each
+   decision. The candidate reviews them, overrides where they disagree, and is accountable
+   for the result. Reasons are recorded in [decisions.md](../decisions.md), and the
+   candidate's review is recorded in [prompts/01-conversation.md](prompts/01-conversation.md).
+2. **Claims get checked, not trusted.** A critic agent checked technical claims by
+   running probes against the exact package versions: SQLite behaviour, Express 5
    semantics, scrypt limits, TypeScript 7 compatibility. These are marked *(verified)* in
-   the decision log.
+   the decision log, and the ones the design depends on become tests.
 3. **Tests are the spec.** For domain and API behaviour, the failing test is written and
    reviewed before any implementation. Small diffs, read in full.
 4. **Mistakes are logged, not hidden.** [log.md](log.md) records what AI got wrong and
    what caught it.
-5. **AI involvement is visible in git.** Commits made with the agent carry a
-   `Co-Authored-By` trailer.
+5. **AI involvement is visible in git.** Commits made through the agent are attributed
+   to Claude.
 
 ## Planning workflow (14 Oct 2026)
 
@@ -53,21 +54,16 @@ flowchart LR
 
 | Before critique | After |
 |---|---|
-| Three different FX designs: a TS function, a SQL view, a rates table quoted in the opposite direction | One source of rates. Conversion happens only in a SQL view (decision X1). |
 | Relocation was a Should in one draft, half-built in another, out of scope in the third | Out of scope in v1, with reasons (X2) |
 | Medians in SQL (one draft) vs in TypeScript (two drafts) | SQL for plain aggregates, TypeScript for percentiles, matching Excel (D10) |
-| Date CHECKs that silently accept `'banana'` | `IS date(col)`, plus a test (architecture §4) |
-| scrypt parameters below OWASP, which also crash with Node's default memory limit | p=3 with an explicit `maxmem` (D9) |
-| A Docker build that would fail (`prepare` hook with no `.git`), plus root-owned volumes | `npm ci --ignore-scripts`, an entrypoint that fixes ownership, a CI step that boots the image |
 | Layered build order: first demoable result on day 3 | Vertical slices: deployed on day 1, demoable mid day 2 (plan.md) |
 | Insights endpoints exposing filters and fields no screen uses | Trimmed to what the UI renders |
 
+Factual errors the critics caught are listed in [log.md](log.md). A second review round
+then checked the written docs for contradictions, technical errors and readability.
+
 ## Build loop (from slice S1 onward)
 
-1. Pick the next behaviour from the slice in [plan.md](../plan.md).
-2. The agent writes the failing test. The candidate reviews it as the spec.
-3. The agent writes the minimum code to pass, then refactors as a separate commit.
-4. `npm run verify` must pass before a commit. Red/green pairs are pushed together.
-5. Anything surprising or wrong goes into [log.md](log.md).
-
-The conventions the agent follows are in [CLAUDE.md](../../CLAUDE.md).
+Each behaviour from [plan.md](../plan.md) goes: red test, reviewed by the candidate as the
+spec; then green; then refactor. The rules are in [CLAUDE.md](../../CLAUDE.md). Surprises
+go into [log.md](log.md).

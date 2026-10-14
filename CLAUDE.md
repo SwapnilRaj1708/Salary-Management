@@ -6,7 +6,8 @@ task conflicts with them, stop and ask.
 
 ## Commands
 
-- `npm run verify`: lint + typecheck + tests. Must pass before any commit.
+- `npm run verify`: lint + typecheck + tests. Must pass before every commit, except a
+  RED `test:` commit, where the only allowed failure is the new test.
 - `npm test -- <path>` runs one file; `npm test -- --project api` runs one workspace.
 - `npm run dev`: API + web with reload.
 - `npm run seed -- --reset`: rebuild the local database with 10,000 employees.
@@ -29,11 +30,15 @@ task conflicts with them, stop and ask.
   (`auth/ employees/ insights/ export/`, each with `routes.ts`, `service.ts`,
   `repository.ts`) plus `domain/ db/ http/ seed/`.
 - **TypeScript:** strict, erasable syntax only (no `enum`, `namespace` or parameter
-  properties; use `as const` plus zod enums). Relative imports end in `.ts`, because
-  Node runs the API's TypeScript directly.
-- **Money:** always an integer in minor units plus an ISO 4217 code. Never use floats for
-  money. Parse with `parseMoney` from a string, and display only with `formatMoney`
-  (both in `shared/`).
+  properties; use `as const` plus zod enums). Import types with `import type` or
+  `import { type X }`: a plain import of a type crashes Node at boot even though `tsc` and
+  Vitest pass. tsconfig sets `erasableSyntaxOnly` and `verbatimModuleSyntax` to enforce
+  both. Relative imports end in `.ts`, because Node runs the API's TypeScript directly.
+- **Money:** stored and entered money is always an integer in minor units plus an
+  ISO 4217 code; never use floats for it. The only floats are derived values (the view's
+  `salary_usd`, percentile interpolation), each rounded once in the response mapper.
+  Parse with `parseMoney` from a string, and display only with `formatMoney` (both in
+  `shared/`).
 - **USD conversion happens only in the `employee_salaries` SQL view.** No TypeScript
   `toUsd()`. Countries, currencies and the FX snapshot live only in
   `shared/src/reference.ts`.

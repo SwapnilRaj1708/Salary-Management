@@ -27,7 +27,7 @@ the brief, and sent it. The result is in [clarifications.md](../../clarification
 
 ## Prompt 2, 14 Oct 2026: proceed on assumptions
 
-> *Swapnil:* "Following is the email I sent to Titiksha … I removed the sixth tech and
+> *Swapnil:* "Following is the email I sent to the recruiter … I removed the sixth tech and
 > hosting question because the tech stack part was mentioned clearly … It has been a full
 > 24 hours and I have not received any reply yet, so let's move ahead with these
 > assumptions and start our planning."
@@ -47,3 +47,11 @@ What the agent did:
    [decisions.md](../../decisions.md).
 4. **Checked the one-page constraint** by rendering the requirements doc to PDF, and
    trimmed it until it fit.
+5. **Ran a second review round on the written docs.** Three critics looked for
+   contradictions, technical errors (by running code and rendering the diagrams) and how
+   a grader would read them. Fixes went in as a separate commit.
+
+## Prompt 3: the candidate's review of the plan
+
+*Pending.* The candidate's review of the proposed decisions, and any overrides, will be
+recorded here.
