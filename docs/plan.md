@@ -23,10 +23,10 @@ Estimates are focused hours.
 |---|---|---|---|
 | **S0 Planning** ✅ | Clarifications, requirements, architecture, decisions, this plan, CLAUDE.md, AI log | – | done |
 | **S1 Skeleton** | npm workspaces, TS 6, Biome, Vitest; `buildApp()` with `/api/health` importing `shared/`; Mantine app shell; CI `verify` job | Health returns version; app shell renders | 2 h |
-| **S2 Deploy** | Dockerfile, `fly.toml`, CI Docker smoke test (build → run → curl health) and deploy job; live URL | Docker smoke in CI | 1.5 h |
+| **S2 Deploy** | Dockerfile, `fly.toml`, CI Docker smoke test (build → run → curl health) and deploy job (needs a Fly account and a `FLY_API_TOKEN` repo secret; Railway is the fallback); live URL | Docker smoke in CI | 1.5 h |
 | **S3 Money** | `parseMoney` / `formatMoney` in `shared/` | Decimal places 0/2/3, rejects extra decimals, zero, negatives and non-numbers, Indian digit grouping, JPY formatting | 1.5 h |
-| **S4 Data + seed** | Schema migration, migration runner, reference sync, FX view, deterministic generator, seed CLI, seed-if-empty at boot | Bad dates rejected by CHECK; view converts JPY and INR correctly; same seed gives the same org; seed invariants (10,000 rows, every row passes the contract, cached salary = latest history row) | 2.5 h |
-| **S5 Auth** | users/sessions tables, scrypt, login/logout/me, `requireAuth`, login page and route guard | 401 without a session; cookie flags; same error for wrong email or password; logout and expiry (fixed clock) | 2 h |
+| **S4 Data + seed** | Schema migration with every table, including `users` and `sessions` (salary history references users), migration runner, reference sync, FX view, deterministic generator, seed CLI, seed-if-empty at boot | Bad dates rejected by CHECK; view converts JPY and INR correctly; same seed gives the same org; seed invariants (10,000 rows, every row passes the contract, cached salary = latest history row) | 2.5 h |
+| **S5 Auth** | HR-user provisioning, scrypt, login/logout/me, `requireAuth`, login page and route guard | 401 without a session; cookie flags; same error for wrong email or password; logout and expiry (fixed clock) | 2 h |
 | **S6 Directory** ⭐ | Query builder, list endpoint, employees table with URL-state filters, search, sort and paging. **First demoable deploy.** | LIKE wildcards escaped; unknown sort → 400; USD sort orders mixed currencies; stable pages; default status = active | 3 h |
 | **S7 Records** | Detail with history, create, edit, salary change, mark as left (API and UI) | Each rule in architecture §8; salary change is atomic; leavers read-only; duplicate email → 409 | 3.5 h |
 | **S8 Insights** | `percentile` and `histogram` (pure), 4 endpoints, Insights page (tables + distribution chart) | Excel fixtures (`[1,2,10]` → P90 = 8.4; median of an even count); nice bucket widths with empty bins kept; exact numbers on a hand-built fixture; leavers excluded | 3 h |
@@ -44,7 +44,7 @@ warning on pay cuts or raises above 50%, then CSV import (the stretch goal).
 1. CSV import (already a stretch goal)
 2. The distribution chart, shown as a percentile table instead (still answers the question)
 3. Sorting on every column (keep name and salary)
-4. Web component tests beyond the core four
+4. Web component tests other than login error, JPY formatting and the salary-change dialog
 
 **Never cut:** requirements, deployed app, salary history with reasons, all four insight
 metrics, CSV export, domain and API tests, the 10,000-row seed, the video, AI notes.
@@ -54,7 +54,7 @@ metrics, CSV export, domain and API tests, the 10,000-row seed, the video, AI no
 | Layer | Scope | Tools | Share |
 |---|---|---|---|
 | Unit (pure) | money, salary-change rules, stats, CSV escaping, query builder, seed generator, zod contracts | Vitest, node environment | ~60% |
-| API integration | Every route through `buildApp()`. Each test gets a fresh in-memory SQLite database with the real migrations (about 0.2 ms to set up). No mocked repositories. Responses are parsed with the shared zod schemas as contract checks. | Vitest + supertest | ~35% |
+| API integration | Every route through `buildApp()`. Each test gets a fresh in-memory SQLite database with the real migrations. No mocked repositories. Responses are parsed with the shared zod schemas as contract checks. | Vitest + supertest | ~35% |
 | Web components | Login error, money formatting (JPY), form validation without network, salary-change dialog, redirect to login on 401 | Vitest, jsdom, Testing Library, `createMemoryRouter` | 4–6 tests |
 | End to end | One happy-path smoke test against the live URL, after v1 | Playwright | 1 |
 
@@ -103,11 +103,3 @@ GitHub Actions, on push and pull request:
 | Scope creep | The "deliberately out" list, plus the cut order above |
 | Reviewers edit demo data before the interview | Seed is deterministic; the reset command is in the README |
 | Deadline unknown | Demoable from slice S6. Submission aimed at the end of day 3. |
-
-## Things only the candidate can do
-
-- Create the Fly.io account (it needs a payment card) and add a `FLY_API_TOKEN` secret to
-  the GitHub repo. Railway is the fallback.
-- Review and approve each red test before it is made green.
-- Merge into `main` without squashing, or authorise pushing to `main` directly.
-- Record the demo video, and reply to the recruiter with the repo link.

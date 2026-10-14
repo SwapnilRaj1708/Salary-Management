@@ -12,7 +12,7 @@ password (not HTTP Basic). CSV export is in scope; CSV import is a stretch goal.
 
 ## In scope
 
-1. **Access.** Sign in and sign out. Every API call needs a session.
+1. **Access.** Sign in and sign out. Every other API call needs a session.
 2. **Directory for 10,000 rows.** Search, filter (country, department, title, status),
    sort and paginate, all on the server.
 3. **Records.** Add an employee with a starting salary, edit details, mark someone as left.

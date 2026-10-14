@@ -76,8 +76,10 @@ docs/                     requirements, decisions, architecture, plan, ai/
   and translate SQLite unique-constraint errors into `ConflictError`.
 - **Dependencies are wired by hand** with factory functions; there is no DI container.
 - **Never `await` inside a transaction.** better-sqlite3 transactions are synchronous, so
-  inside one process no other request can interleave with a write. This is why v1
-  needs no optimistic locking.
+  inside one process no other request can interleave with a write. Concurrent requests
+  therefore cannot corrupt data. They do not prevent a lost update from a stale form,
+  such as two open tabs editing the same employee, where the last save wins. With a
+  single HR user that is accepted in v1, so there is no optimistic locking.
 
 Validation happens in three layers:
 1. **zod at the HTTP edge:** shape, types, ranges, real dates, and `.strict()` objects so
@@ -87,6 +89,9 @@ Validation happens in three layers:
    of defence.
 
 ## 4. Data model
+
+The migration in `api/src/db/migrations/` is the source of truth for the schema. This
+section records the design and the constraints that matter.
 
 ```mermaid
 erDiagram
@@ -98,73 +103,58 @@ erDiagram
   CURRENCIES ||--o{ SALARY_HISTORY : "amount in"
   USERS ||--o{ SESSIONS : "owns"
   USERS |o--o{ SALARY_HISTORY : "changed by"
+  CURRENCIES {
+    text code PK "ISO 4217"
+    int minor_unit "JPY 0, USD 2, KWD 3"
+    real units_per_usd "static snapshot"
+    text rate_as_of
+  }
+  COUNTRIES {
+    text code PK "ISO 3166-1 alpha-2"
+    text name
+    text currency_code FK
+  }
+  EMPLOYEES {
+    int id PK
+    text employee_code "generated: EMP-000123"
+    text full_name
+    text email UK "lower-cased"
+    int job_title_id FK
+    int department_id FK
+    text country_code FK "fixed after creation"
+    text hire_date
+    text status "active or left"
+    text left_on
+    int current_salary_minor "cache of latest history row"
+  }
+  SALARY_HISTORY {
+    int id PK
+    int employee_id FK
+    int amount_minor
+    text currency_code FK "snapshot"
+    text effective_date
+    text reason
+    text note
+    int changed_by_user_id FK
+  }
+  USERS {
+    int id PK
+    text email UK
+    text password_hash "scrypt with its parameters"
+  }
+  SESSIONS {
+    text token_hash PK "SHA-256 of the cookie token"
+    int user_id FK
+    int expires_at "epoch ms"
+  }
 ```
 
+`departments` and `job_titles` are plain `(id, name)` lists, with names unique regardless
+of case. All tables are `STRICT`.
+
+The single place where USD conversion is defined:
+
 ```sql
--- Reference data. Countries and currencies are upserted at boot from shared/ (one source of truth).
-CREATE TABLE currencies (
-  code          TEXT PRIMARY KEY CHECK (length(code) = 3),       -- ISO 4217
-  name          TEXT NOT NULL,
-  minor_unit    INTEGER NOT NULL CHECK (minor_unit BETWEEN 0 AND 3), -- JPY 0, USD 2, KWD 3
-  units_per_usd REAL NOT NULL CHECK (units_per_usd > 0),         -- static snapshot: 1 USD = x units
-  rate_as_of    TEXT NOT NULL CHECK (rate_as_of IS date(rate_as_of))
-) STRICT;
-
-CREATE TABLE countries (
-  code          TEXT PRIMARY KEY CHECK (length(code) = 2),       -- ISO 3166-1 alpha-2
-  name          TEXT NOT NULL UNIQUE,
-  currency_code TEXT NOT NULL REFERENCES currencies(code)
-) STRICT;
-
-CREATE TABLE departments (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE) STRICT;
-CREATE TABLE job_titles  (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE) STRICT;
-
-CREATE TABLE employees (
-  id                   INTEGER PRIMARY KEY,
-  employee_code        TEXT GENERATED ALWAYS AS (printf('EMP-%06d', id)) VIRTUAL,
-  full_name            TEXT NOT NULL CHECK (length(full_name) BETWEEN 1 AND 150),
-  email                TEXT NOT NULL UNIQUE COLLATE NOCASE,        -- lower-cased by the service
-  job_title_id         INTEGER NOT NULL REFERENCES job_titles(id),
-  department_id        INTEGER NOT NULL REFERENCES departments(id),
-  country_code         TEXT NOT NULL REFERENCES countries(code),   -- fixed after creation in v1
-  hire_date            TEXT NOT NULL CHECK (hire_date IS date(hire_date)),
-  status               TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'left')),
-  left_on              TEXT CHECK (left_on IS NULL OR left_on IS date(left_on)),
-  current_salary_minor INTEGER NOT NULL CHECK (current_salary_minor > 0), -- cache of latest history row
-  created_at           TEXT NOT NULL,
-  updated_at           TEXT NOT NULL,
-  CHECK ((status = 'left') = (left_on IS NOT NULL)),
-  CHECK (left_on IS NULL OR left_on >= hire_date)
-) STRICT;
-
-CREATE TABLE salary_history (                -- append-only: the code has no UPDATE or DELETE path
-  id                 INTEGER PRIMARY KEY,
-  employee_id        INTEGER NOT NULL REFERENCES employees(id),
-  amount_minor       INTEGER NOT NULL CHECK (amount_minor > 0),
-  currency_code      TEXT NOT NULL REFERENCES currencies(code),  -- snapshot, so history stays readable
-  effective_date     TEXT NOT NULL CHECK (effective_date IS date(effective_date)),
-  reason             TEXT NOT NULL CHECK (reason IN
-                       ('hire','annual_review','promotion','market_adjustment','correction','other')),
-  note               TEXT CHECK (note IS NULL OR length(note) <= 500),
-  changed_by_user_id INTEGER REFERENCES users(id),                -- NULL for seed data
-  created_at         TEXT NOT NULL
-) STRICT;
-
-CREATE TABLE users (
-  id            INTEGER PRIMARY KEY,
-  email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
-  display_name  TEXT NOT NULL,
-  password_hash TEXT NOT NULL,              -- "scrypt$N$r$p$salt$hash"
-  created_at    TEXT NOT NULL
-) STRICT;
-
-CREATE TABLE sessions (
-  token_hash TEXT PRIMARY KEY,              -- SHA-256 of the cookie token; the raw token is never stored
-  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  expires_at INTEGER NOT NULL               -- epoch ms from the injected clock
-) STRICT;
-
--- The ONLY place USD conversion is defined.
 CREATE VIEW employee_salaries AS
 SELECT e.*,
        co.currency_code,
@@ -179,7 +169,10 @@ Indexes are added when a measured query needs them, and each is recorded in the
 performance notes. The starting set covers foreign-key lookups, `(country_code, status)`
 and the default sort `(full_name COLLATE NOCASE, id)`.
 
-Notes on the schema:
+Constraints that matter:
+- **Positive amounts.** `current_salary_minor > 0` and `amount_minor > 0`. Status and
+  `left_on` must agree: `(status = 'left') = (left_on IS NOT NULL)`, and
+  `left_on >= hire_date`. The reason is checked against the fixed list.
 - **Date checks use `IS date(col)`, not `= date(col)`.** For malformed input such as
   `'banana'`, `date()` returns NULL, and a CHECK that evaluates to NULL passes. A repository
   test inserts a bad date and expects the constraint to fail.
@@ -194,9 +187,10 @@ Notes on the schema:
 - **Storage.** Money is always an integer in the currency's minor unit plus an ISO 4217
   code. INR 25,00,000.00 is stored as `250000000`. JPY 8,000,000 is stored as `8000000`,
   because JPY has no minor unit. STRICT INTEGER columns reject fractions.
-- **API shape.** Amounts travel as `Money = { amountMinor: number, currency: string }`,
-  both in requests and responses. The server derives the currency from the country, so
-  requests only send `amountMinor`.
+- **API shape.** Responses carry amounts as
+  `Money = { amountMinor: number, currency: string }`. Requests send only the integer:
+  `salaryMinor` when creating an employee, `amountMinor` for a salary change. The server
+  derives the currency from the employee's country.
 - **Parsing.** `parseMoney("25,00,000.50", minorUnit)` in `shared/` works on the string: it
   splits on `.` and rejects more decimal places than the currency allows. It never does
   float maths. For example, `Math.round(1.005 * 100)` gives `100`, not `101`.
@@ -257,7 +251,7 @@ All routes are under `/api` and use JSON. Every route needs a session except `he
 | `POST /employees/:id/leave` | `{leftOn}` | `200 EmployeeDetail` |
 | `GET /insights/by-country` | – | `200 {items:[{country, currency, headcount, min, median, avg, max, avgUsd, payrollUsd}], fx}` |
 | `GET /insights/by-job-title` | `country?` | `200 {items:[{jobTitle, headcount, countries, avgUsd, local?:{min, avg, max}}], fx}` |
-| `GET /insights/by-department` | `country?` | `200 {items:[{department, headcount, payrollUsd, avgUsd, share}], totalUsd, fx}` |
+| `GET /insights/by-department` | – | `200 {items:[{department, headcount, payrollUsd, avgUsd, share}], totalUsd, fx}` |
 | `GET /insights/distribution` | `country` (required) | `200 {country, currency, headcount, percentiles, buckets:[{from, to, count}]}` |
 
 - **List details.**
@@ -281,11 +275,11 @@ field list for validation failures:
 
 | Status | `code` |
 |---|---|
-| 400 | `VALIDATION_FAILED`, `UNKNOWN_REFERENCE`, `EFFECTIVE_DATE_OUT_OF_RANGE` |
+| 400 | `VALIDATION_FAILED`, `UNKNOWN_REFERENCE`, `DATE_OUT_OF_RANGE` (a `hireDate`, `effectiveDate` or `leftOn` outside its allowed range) |
 | 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS` |
 | 404 | `NOT_FOUND`: an unknown employee, or an unknown `/api/*` route. It is never the SPA fallback. |
 | 409 | `EMAIL_TAKEN`, `EMPLOYEE_LEFT`, `SALARY_UNCHANGED`, `EFFECTIVE_DATE_BEFORE_LATEST_CHANGE` |
-| 413 | `PAYLOAD_TOO_LARGE`, mapped from the body parser's own error type |
+| 413 / 415 | Errors raised by the body parser (`err.type` is set) keep their own status: too large → 413 `PAYLOAD_TOO_LARGE`; unsupported charset or encoding → 415; malformed JSON → 400 `VALIDATION_FAILED`. |
 | 500 | `INTERNAL`: a generic message. The stack trace is logged, never returned. |
 
 ## 8. Business rules
@@ -307,10 +301,11 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
 
 - **Users table.** At boot, one HR user is created from `ADMIN_EMAIL` and `ADMIN_PASSWORD`
   if the table is empty. In production the app refuses to start without them. The user's
-  id is recorded as `changed_by` on every salary change, which gives an audit trail.
+  id is recorded as `changed_by_user_id` on every salary change, which gives an audit trail.
 - **Passwords.**
-  - Hashed with async `crypto.scrypt` using N=2^15, r=8, p=3 and `maxmem` of 64 MiB, which
-    is OWASP-equivalent strength within 32 MiB of memory.
+  - Hashed with async `crypto.scrypt` using N=2^15, r=8, p=3, one of OWASP's
+    recommended settings. Each hash needs just over 32 MiB, so `maxmem` is set to 64 MiB:
+    Node's 32 MiB default rejects these parameters.
   - The hash string records its own parameters, so they can be raised later.
   - Comparison uses `timingSafeEqual`.
   - Wrong email and wrong password get the same error.
@@ -327,10 +322,10 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
   - `SameSite=Lax` keeps the cookie off cross-site POSTs.
   - The API only accepts JSON bodies, which cross-site forms cannot send.
   - No GET request changes data.
-- **Hardening deliberately deferred.** The demo credentials are published for reviewers,
-  so the following would protect nothing in v1: login rate limiting, an Origin-header
-  check, and structured log redaction. They are listed as next steps in
-  [decisions.md](decisions.md).
+- **Hardening deferred for time.** Login rate limiting, an Origin-header check and
+  structured log redaction would add little to a demo whose credentials are published.
+  A real deployment holding ACME's salary data needs at least login rate limiting before
+  go-live. See [decisions.md](decisions.md).
 
 ## 10. Deployment
 
@@ -367,27 +362,17 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
 **Targets.** p95 under 300 ms for list and insights on the deployed app with 10,000
 employees, and seeding 10,000 employees in under 2 seconds.
 
-**Early measurements.** These come from planning prototypes: in-memory SQLite in the
-development container, not the final code. They will be re-measured on the real code
-and on the deployed Machine, and recorded in `docs/performance.md`.
-
-| Operation, 10k employees | Measured |
-|---|---|
-| Seed 10,000 employees + ~25,000 history rows in one transaction | ~0.3 s |
-| By-country aggregates through the FX view | ~10–13 ms |
-| Deepest offset page, sorted by USD salary | ~9–19 ms |
-| Fetch all rows for the CSV export | ~23 ms |
-| Median per country in TypeScript over sorted arrays | ~20 ms |
+Measured numbers, from the real code and the deployed Machine, will be recorded in
+`docs/performance.md` (slice S10).
 
 **At 10,000 rows:**
-- Every query is a full scan or close to one, and it is still fast. No caching or
-  precomputed aggregates are needed.
+- Every query is a full scan or close to one, which is still cheap at this size. No
+  caching or precomputed aggregates are planned.
 - The UI uses server-side paging, so there is no virtualised table.
 - The UI keeps the previous page visible while the next one loads, and search waits
   300 ms after typing stops.
 
-**Growth path** (what changes at about 1 million rows, where prototypes measured 1–6 s
-per query):
+**Growth path** (what changes at about 1 million rows):
 1. A stored, indexed `salary_usd_cents` column, recomputed whenever the rates change.
 2. Keyset pagination for deep pages.
 3. FTS5 full-text search instead of `LIKE '%…%'`.
