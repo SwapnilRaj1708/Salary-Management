@@ -1,7 +1,8 @@
 # Clarifications & working assumptions
 
-The brief invites questions ("Ask questions — don't assume"), so before writing the
-requirements I emailed the recruiting team on **13 Oct 2026** with the questions below.
+The email that came with the assessment asks candidates to clarify rather than assume
+("Ask Questions — Don't Assume"). So before writing the requirements I emailed the
+recruiting team on **13 Oct 2026** with the questions below.
 Each question carried the assumption I would work with if I heard nothing, so progress
 would not block on the reply.
 
