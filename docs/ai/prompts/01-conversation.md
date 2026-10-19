@@ -51,7 +51,22 @@ What the agent did:
    contradictions, technical errors (by running code and rendering the diagrams) and how
    a grader would read them. Fixes went in as a separate commit.
 
-## Prompt 3: the candidate's review of the plan
+## Prompt 3, 19 Oct 2026: the recruiter's reply
+
+> *Swapnil:* "Before I comment anything, I want to inform you that I got an email today
+> from them …" The recruiter confirmed all five assumptions, and asked that the docs
+> explain why these metrics were chosen.
+
+What the agent did:
+- **Recorded the reply** in [clarifications.md](../../clarifications.md), with each
+  answer next to its question.
+- **Updated the requirements** from "unanswered" to "confirmed".
+- **Added "why these metrics"** to [architecture.md §6](../../architecture.md#6-metrics-why-these-and-how-they-are-defined).
+  It maps each HR question to its metric and explains each refinement.
+
+No design decision changed.
+
+## The candidate's review of the plan
 
 *Pending.* The candidate's review of the proposed decisions, and any overrides, will be
 recorded here.

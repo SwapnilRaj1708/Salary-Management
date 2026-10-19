@@ -5,7 +5,7 @@ salary records for about 10,000 employees across countries correct, and answers 
 we pay people?" in a couple of clicks. Today, inconsistent job titles break averages,
 there is no reliable salary history, and currencies are converted by hand.
 
-**Assumptions** ([sent to the recruiter, unanswered](clarifications.md)): salaries are
+**Assumptions** ([confirmed by the recruiter](clarifications.md)): salaries are
 stored in local currency, with static USD rates for org-wide figures. Salary means annual
 gross base pay, with a history of changes. One HR role signs in with an email and
 password (not HTTP Basic). CSV export is in scope; CSV import is a stretch goal.

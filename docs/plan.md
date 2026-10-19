@@ -102,4 +102,4 @@ GitHub Actions, on push and pull request:
 | AI-written code the candidate can't explain | Tests written first and reviewed as the spec; small diffs; the decision log; CLAUDE.md rules |
 | Scope creep | The "deliberately out" list, plus the cut order above |
 | Reviewers edit demo data before the interview | Seed is deterministic; the reset command is in the README |
-| Deadline unknown | Demoable from slice S6. Submission aimed at the end of day 3. |
+| No deadline given (the recruiter's reply didn't set one) | Demoable from slice S6. Submission aimed at the end of day 3 of the build. |

@@ -212,7 +212,25 @@ Constraints that matter:
   for 10,000 employees stay far below that. If high-denomination currencies such as IDR
   are added at scale, sum queries switch to `safeIntegers()`.
 
-## 6. Metric definitions
+## 6. Metrics: why these, and how they are defined
+
+The starting set came from the clarifying questions, and the recruiter confirmed it.
+Each metric answers a question the HR manager asks today with spreadsheets. Where the
+set was refined, the reason is given.
+
+| The HR manager asks | Metric | Refinement, and why |
+|---|---|---|
+| What is the lowest, highest and typical pay in a country? | Min, **median**, average and max by country, in local currency | Median added. Pay is right-skewed: a few senior salaries pull the average up, so the median is the honest "typical" figure. Showing both makes the skew visible. |
+| How many people do we employ there, and what does base pay cost? | Headcount and payroll (USD) on the same by-country table | Added to the by-country view. It sizes each country and gives the org-wide total without another screen. |
+| How spread out is pay in a country? | Distribution: a histogram plus P10–P90 | One country at a time. Mixing countries in one histogram mixes currencies and labour markets, so its shape would mean nothing. |
+| What do we pay for a given job title? | Average by job title | Two levels. Within a country it is in local currency, which is the like-for-like comparison. Across the org it is in USD, weighted by headcount, and labelled as mixing labour markets. |
+| Which department costs the most? | Payroll by department, in USD, with its share of the total | Shown as a share as well as an amount, because "Engineering is 41% of base payroll" answers the question directly. |
+
+Deliberately not metrics in v1: pay equity (it needs sensitive data and controls for role
+and level), trends over time, and comparison against pay bands (no band data exists). The
+reasons are in [requirements.md](requirements.md).
+
+**Definitions:**
 
 | Term | Definition |
 |---|---|
