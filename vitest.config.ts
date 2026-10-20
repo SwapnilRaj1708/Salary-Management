@@ -6,7 +6,9 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['shared/src/**', 'api/src/**', 'web/src/**'],
-      exclude: ['**/*.test.{ts,tsx}', '**/test/**'],
+      // Entry points only wire things together; booting them is checked by CI's
+      // Docker smoke test, not by unit tests.
+      exclude: ['**/*.test.{ts,tsx}', '**/test/**', 'api/src/main.ts', 'web/src/main.tsx'],
     },
   },
 });
