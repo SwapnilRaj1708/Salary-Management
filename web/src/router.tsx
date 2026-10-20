@@ -6,6 +6,7 @@ import {
   redirect,
 } from '@tanstack/react-router';
 import { AppShell } from './app/AppShell.tsx';
+import { pageTransitionTypes } from './app/pageTransition.ts';
 import { EmployeesPage } from './features/employees/EmployeesPage.tsx';
 import { InsightsPage } from './features/insights/InsightsPage.tsx';
 
@@ -35,7 +36,11 @@ const routeTree = rootRoute.addChildren([indexRoute, employeesRoute, insightsRou
 
 /** Tests pass a memory history; the browser uses the default. */
 export function createAppRouter({ history }: { history?: RouterHistory } = {}) {
-  return createRouter({ routeTree, ...(history ? { history } : {}) });
+  return createRouter({
+    routeTree,
+    defaultViewTransition: { types: pageTransitionTypes },
+    ...(history ? { history } : {}),
+  });
 }
 
 declare module '@tanstack/react-router' {

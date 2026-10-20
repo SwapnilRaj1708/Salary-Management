@@ -7,6 +7,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { Outlet } from '@tanstack/react-router';
 import { ButtonLink } from './ButtonLink.tsx';
+import { PAGE_CONTENT_TRANSITION, ViewTransitionStyles } from './ViewTransitionStyles.tsx';
 
 const navLinkSx = {
   color: 'text.secondary',
@@ -16,6 +17,7 @@ const navLinkSx = {
 export function AppShell() {
   return (
     <>
+      <ViewTransitionStyles />
       <AppBar
         position="static"
         color="inherit"
@@ -38,7 +40,11 @@ export function AppShell() {
           </Box>
         </Toolbar>
       </AppBar>
-      <Container component="main" maxWidth="xl" sx={{ py: 3 }}>
+      <Container
+        component="main"
+        maxWidth="xl"
+        sx={{ py: 3, viewTransitionName: PAGE_CONTENT_TRANSITION }}
+      >
         <Alert severity="info" sx={{ mb: 3 }}>
           Demo environment: data resets to the seeded 10,000 employees whenever the free server
           sleeps.
