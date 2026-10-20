@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    projects: ['shared'],
+    projects: ['shared', 'api'],
     coverage: {
       provider: 'v8',
       include: ['shared/src/**', 'api/src/**', 'web/src/**'],

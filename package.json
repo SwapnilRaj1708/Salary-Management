@@ -7,7 +7,8 @@
     "node": ">=22.22.2 <23"
   },
   "workspaces": [
-    "shared"
+    "shared",
+    "api"
   ],
   "scripts": {
     "test": "vitest run",
