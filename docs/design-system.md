@@ -88,7 +88,7 @@ The theme also sets `motion: { reducedMotion: 'system' }`.
 
 | Where | How |
 |---|---|
-| Page change | View Transitions, through TanStack Router's `defaultViewTransition`. Only navigations that change the path animate: a short fade and an 8 px rise on the main content, while the app bar stays still. Filter, paging and search changes never animate.<br/>Some browsers have View Transitions but not transition types (Chrome/Edge < 125, Safari < 18.2, Firefox < 147). There the router ignores `types` and transitions *every* navigation *(verified in the router source)*. So the global CSS sets `animation: none` on all `::view-transition-*` pseudo-elements, and declares the fade and rise only under `html:active-view-transition-type(page)`, inside `prefers-reduced-motion: no-preference`.<br/>Browsers without View Transitions swap instantly. |
+| Page change | View Transitions, through TanStack Router's `defaultViewTransition`. Only navigations from one page to another animate: a short fade and an 8 px rise on the main content, while the app bar stays still. Filter, paging and search changes never animate, and neither does the first render (reload or deep link).<br/>Some browsers have View Transitions but not transition types (Chrome/Edge < 125, Safari < 18.2, Firefox < 147). There the router ignores `types` and transitions *every* navigation *(verified in the router source)*. So the global CSS sets `animation: none` on all `::view-transition-*` pseudo-elements, and declares the fade and rise only under `html:active-view-transition-type(page)`, inside `prefers-reduced-motion: no-preference`.<br/>Browsers without View Transitions swap instantly. |
 | Directory loading | The previous page stays visible, with the grid's `linear-progress` overlay. The overlay only appears if loading takes longer than 200 ms, so fast responses don't flicker. The first load shows a skeleton. |
 | Detail and Insights loading | `Skeleton`, sized like the final content so nothing shifts |
 | Saving | `Button loading` (theme default `loadingPosition: 'start'`) with the text "Saving…". The text carries the meaning, not the spinner. |
@@ -121,9 +121,13 @@ The theme also sets `motion: { reducedMotion: 'system' }`.
     immediately, so tests need no sleeps or fake timers.
   - The old `react-transition-group` switch no longer affects MUI 9 *(verified)*.
   - jsdom has no View Transitions and no `matchMedia`, so the router and charts need no
-    stubs.
-  - Unit tests check that page transitions skip search-only navigations, that
-    `reducedMotion` is `'system'`, and that no duration exceeds the ceiling.
+    stubs. The exception is one test file, which stubs `startViewTransition` and
+    `CSS.supports` locally to check the router's transition wiring.
+  - **Unit tests check:**
+    - page transitions skip the first render and same-page navigations;
+    - `reducedMotion` is `'system'`;
+    - no duration exceeds the ceiling;
+    - the CSS rule structure, read through jsdom's CSSOM.
 
 ## 5. States
 

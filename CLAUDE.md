@@ -55,8 +55,9 @@ task conflicts with them, stop and ask.
 - **No `Date.now()`, `new Date()` or `Math.random()`** in domain code, services or the
   seed. Inject `Clock` and `Rng` instead.
 - `domain/` and `shared/` are pure: no I/O, no framework imports, no Node or DOM APIs.
-- **Validation:** validate at the HTTP edge with the shared zod contracts (`.strict()`
-  objects). SQL lives only in repositories and is always parameterised. Sort keys come
+- **Validation:** validate at the HTTP edge with the shared zod contracts. Request schemas
+  are `.strict()`. Response contracts are not, so fields a newer API adds can't break an
+  older web app. SQL lives only in repositories and is always parameterised. Sort keys come
   from a whitelist.
 - **Never `await` inside `db.transaction()`.**
 - **Errors:** throw a typed `DomainError`. The error handler maps it to RFC 9457
