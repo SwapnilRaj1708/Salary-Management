@@ -96,3 +96,34 @@ What the agent did:
    - P4 was not enforced by anything.
 
    All were fixed; see [log.md](../log.md) rows 14–17.
+
+## Prompt 5, 20 Oct 2026: MUI everywhere, motion, branches, hosting
+
+> *Swapnil:* "Let's go with MUI everywhere, and use shadcn only where it does something
+> better than MUI and it won't be a big deal to replace it … Look up some animations and
+> transitions to see if we can add those to our design system … For branch naming, yes,
+> use relevant naming conventions. For the main rule setup, tell me how I should set it
+> up. And yes, you can use a Render free account and Vercel if required."
+
+What the agent did:
+1. **Ran four research agents in parallel.** Each verified its findings against the real
+   packages and official docs. The topics were MUI coverage, motion, hosting topology, and
+   GitHub rulesets.
+2. **D7 → MUI everywhere.**
+   - MUI's free packages cover every screen.
+   - No shadcn component qualified, because each one needs Tailwind. So Tailwind was
+     dropped, along with the CSS-layer work it required.
+   - The likeliest future exception, a ⌘K palette, can use headless `cmdk` inside an MUI
+     dialog.
+3. **D16 motion system.** MUI theme tokens plus two Material 3 easings; reduced motion
+   switched on (MUI's default ignores it); View Transitions for path changes only; no
+   animation library. Written up in the new [design-system.md](../../design-system.md),
+   which also has the component map, theme tokens and UI states.
+4. **P3 → Vercel in front of Render.** Vercel serves the SPA instantly and proxies
+   `/api/*` to Render, so cold starts show our own "waking" screen and cookies stay
+   same-origin. A day-1 smoke test checks the parts Vercel doesn't document.
+5. **P4 enforcement.** The new [CONTRIBUTING.md](../../../CONTRIBUTING.md) has the branch
+   naming rules and the exact `main` ruleset settings. Required approvals are 0, because
+   authors can't approve their own PRs.
+6. **Moved the planning work** to `docs/planning` and opened the first pull request into
+   `main`.
