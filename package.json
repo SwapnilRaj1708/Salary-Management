@@ -8,7 +8,8 @@
   },
   "workspaces": [
     "shared",
-    "api"
+    "api",
+    "web"
   ],
   "scripts": {
     "test": "vitest run",
@@ -17,7 +18,8 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "verify": "npm run lint && npm run typecheck && npm test",
-    "start": "node api/src/main.ts"
+    "start": "node api/src/main.ts",
+    "build": "npm run build -w @salary/web"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
