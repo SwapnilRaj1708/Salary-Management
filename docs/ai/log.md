@@ -5,7 +5,7 @@ logged here; the commit history covers that.
 
 | # | Date | What the AI produced | What was wrong | Caught by | Resolution |
 |---|---|---|---|---|---|
-| 1 | 14 Oct | `clarifications.md` credited "Ask Questions — Don't Assume" to the brief | The phrase comes from the recruiter's email, not the brief | Compliance critic (it had only the brief) | Fixed in commit `611a6fa` |
+| 1 | 14 Oct | `clarifications.md` credited "Ask Questions — Don't Assume" to the brief | The phrase comes from the recruiter's email, not the brief | Compliance critic (it had only the brief) | Fixed in commit `47c2ad9` |
 | 2 | 14 Oct | The delivery draft offered `Math.round(12.345 * 100) → 1235` as an example of a float bug | That result is correct: `12.345*100` is exactly `1234.5` | Technical and compliance critics, by running Node | Use real traps instead: `Math.round(1.005*100) → 100`, `Math.floor(0.29*100) → 28` |
 | 3 | 14 Oct | The architecture draft used `CHECK (col = date(col))` to validate dates | `date('banana')` is NULL, and a NULL CHECK passes, so garbage dates were accepted | Technical critic, with SQLite 3.53.4 | `CHECK (col IS date(col))` and a repository test |
 | 4 | 14 Oct | The drafts defined FX three ways, including rates quoted in opposite directions | Two sources of truth, and a risk of silently inverted USD figures | Consistency and technical critics | One source; SQL view only (decision X1) |

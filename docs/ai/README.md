@@ -24,8 +24,10 @@ where the human stays in control.
    reviewed before any implementation. Small diffs, read in full.
 4. **Mistakes are logged, not hidden.** [log.md](log.md) records what AI got wrong and
    what caught it.
-5. **AI involvement is visible in git.** Commits made through the agent are attributed
-   to Claude.
+5. **AI involvement is visible in git.** The candidate authors every commit. Commits
+   written with the agent end with a `Co-Authored-By: Claude` trailer. The planning
+   commits were first made under the agent's own git identity. On 20 Oct 2026 they were
+   re-authored to the candidate, with dates, contents and trailers unchanged.
 
 ## Planning workflow (14 Oct 2026)
 

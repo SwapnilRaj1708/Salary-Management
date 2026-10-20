@@ -66,7 +66,24 @@ What the agent did:
 
 No design decision changed.
 
-## The candidate's review of the plan
+## Prompt 4, 20 Oct 2026: the candidate's review of the plan
 
-*Pending.* The candidate's review of the proposed decisions, and any overrides, will be
-recorded here.
+> *Swapnil:* "1. In decisions.md, D7: use shadcn + Tailwind + MUI. D14: use TanStack
+> Router. 2. Yes, make me the author of the commits. 3. No direct pushing to main by
+> anyone; we will maintain separate branches for features, bug fixes, etc. 4. Free
+> hosting only."
+
+The candidate changed D7 and D14 and left the other decisions as proposed.
+
+What the agent did:
+1. **D7.** Proposed a split to keep two styling systems manageable: shadcn/ui + Tailwind
+   for the app, and MUI only for the directory's Data Grid. It checked that MUI supports
+   CSS cascade layers and that the Data Grid's MIT page-size cap (100) matches the API.
+2. **D14.** Switched to TanStack Router, with a code-based route tree. It checked that the
+   router accepts zod 4 schemas directly for search params.
+3. **Hosting.** Researched current free tiers, then moved hosting from Fly.io to Render's
+   free tier (P3). The costs are recorded: data resets on sleep, cold starts, 0.1 CPU.
+4. **Branching.** Recorded the policy as P4, and in the plan and CLAUDE.md.
+5. **Authorship.** Re-authored the 9 planning commits to the candidate, keeping dates,
+   contents and the `Co-Authored-By` trailers. It force-pushed the feature branch with a
+   lease check and set the repo's git identity for future commits.
