@@ -22,8 +22,13 @@ and to answer "how do we pay people?". This is a take-home assessment for Incuby
 ## Stack (planned)
 
 - **API:** Node 22, TypeScript, Express 5, SQLite (better-sqlite3).
-- **Web:** React 19, Vite, Mantine, TanStack Query.
+- **Web:** React 19, Vite, Tailwind CSS + shadcn/ui, MUI X Data Grid, TanStack Router and
+  Query.
 - **Tests:** Vitest.
-- **Hosting:** Docker on Fly.io.
+- **Hosting:** Docker on Render's free tier. Demo data resets to the seed whenever the
+  instance sleeps.
+
+Every change goes through its own branch and a pull request into `main`; nobody pushes to
+`main` directly.
 
 The reasons for each choice are in [docs/decisions.md](docs/decisions.md).

@@ -6,12 +6,13 @@ This document covers how v1 is built. The reasons behind each choice are in
 ## 1. System overview
 
 One deployable unit: a Node.js API that also serves the built React app. It uses a single
-SQLite file on a persistent volume.
+SQLite file. On the free host that file lives on temporary disk and is re-seeded at every
+boot (§10).
 
 ```mermaid
 flowchart LR
   subgraph Browser
-    SPA["React 19 SPA (Vite build)<br/>Mantine · TanStack Query · React Router<br/>filters live in the URL"]
+    SPA["React 19 SPA (Vite build)<br/>shadcn/ui + Tailwind · MUI X Data Grid<br/>TanStack Router + Query · filters in the URL"]
   end
   subgraph Container["Docker container (one instance)"]
     subgraph API["Node 22 · Express 5 · TypeScript (type stripping, no build)"]
@@ -24,7 +25,7 @@ flowchart LR
       ST["Static SPA + index.html fallback"]
     end
   end
-  DB[("SQLite (WAL, STRICT tables)<br/>/data/salary.db on a volume")]
+  DB[("SQLite file (WAL, STRICT tables)<br/>re-seeded at boot on the free host")]
   SH[["shared/<br/>zod contracts · enums · reference data · money"]]
   SPA -- "same-origin /api/*, session cookie" --> MW --> RT --> SV --> RP --> DB
   SV --> DM
@@ -55,7 +56,7 @@ api/      @salary/api     Express API, seed script; runs .ts directly on Node 22
     auth/ employees/ insights/ export/
                           feature folders: routes.ts, service.ts, repository.ts (+ tests)
     seed/                 prng, catalogue, generate (pure), write, cli
-web/      @salary/web     React + Vite + Mantine
+web/      @salary/web     React + Vite + Tailwind/shadcn/ui, MUI X Data Grid, TanStack Router
   src/                    routes, features/{auth,employees,insights}, api client & hooks
 shared/   @salary/shared  imported as TypeScript source by both api and web, no build
   src/                    zod contracts, enums, countries/currencies/FX snapshot, money
@@ -326,6 +327,8 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
     Node's 32 MiB default rejects these parameters.
   - The hash string records its own parameters, so they can be raised later.
   - Comparison uses `timingSafeEqual`.
+  - On the free host's 0.1 CPU a hash takes a few seconds. That is accepted, because it
+    happens once per login, and lowering the cost would drop below OWASP's minimum.
   - Wrong email and wrong password get the same error.
 - **Sessions.**
   - The token is 32 random bytes, sent in a cookie named `sid`. The cookie is `HttpOnly`,
@@ -347,8 +350,14 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
 
 ## 10. Deployment
 
-- **Host: Fly.io**, one Machine with a volume mounted at `/data`. Railway is the fallback.
-  Render's free tier has no persistent disk, so it would wipe reviewers' edits.
+- **Host: Render's free web service**, running our Docker image. It has 512 MB RAM and
+  0.1 CPU, and sleeps after 15 minutes without traffic. The free tier has no persistent
+  disk, so the SQLite file is temporary.
+  - Every boot starts from an empty database and seeds it. Data resets whenever the
+    instance sleeps or redeploys.
+  - The login page and README say so. The seed is deterministic, so every reviewer sees
+    the same data.
+  - Upgrade paths if data must persist are listed in [decisions.md](decisions.md) (P3).
 - **Image.**
   - Every stage uses `node:22.22-bookworm-slim`, which is glibc-based and matches
     better-sqlite3's prebuilt binaries.
@@ -356,37 +365,46 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
   - The runtime stage gets production dependencies only. It keeps `shared/` at the same
     relative path, so the workspace symlink still resolves: Node will not strip types
     from files under `node_modules`.
-  - An entrypoint runs `chown` on the root-owned volume, then drops to the `node` user.
+  - The process runs as the unprivileged `node` user, with a data directory created in the
+    image and owned by that user.
 - **Boot sequence.**
   1. Validate config.
   2. Open the database: WAL, `foreign_keys=ON`, `busy_timeout`.
   3. Run migrations (numbered `.sql` files, tracked with `PRAGMA user_version`).
   4. Sync reference data.
-  5. Seed 10,000 employees if the database is empty.
+  5. Seed 10,000 employees if the database is empty. On the free host it always is.
   6. Create the HR user if there is none.
   7. Listen.
   8. On SIGTERM, close the server and then the database.
-- **Health.** `GET /api/health` returns the git SHA and imports from `shared/`, so the
-  first deploy proves type stripping through the symlink. CI builds and runs the image and
-  calls `curl /api/health` before deploying. Fly checks the same endpoint.
-- **Resetting demo data.** `fly ssh console -C "node api/src/seed/cli.ts --reset"`. There
-  is deliberately no env flag for this, because a forgotten flag would wipe data on every
-  restart.
-- **Single instance.** SQLite has one writer, so there is exactly one Machine. The growth
-  path is to scale up the Machine first, then move to Postgres (§11).
+- **Health.** `GET /api/health` returns the deployed commit (`RENDER_GIT_COMMIT`) and
+  imports from `shared/`, so the first deploy proves type stripping through the symlink.
+  CI builds and runs the image and calls `curl /api/health` on every pull request. Render
+  checks the same endpoint.
+- **Deploys.** Render deploys `main` automatically. `main` only changes through pull
+  requests that passed CI (decision P4).
+- **Resetting data locally.** `npm run seed -- --reset`. There is deliberately no env
+  flag for this, because a forgotten flag would wipe data on every restart.
+- **Single instance.** SQLite has one writer, so there is exactly one instance. The growth
+  path is a paid instance with a persistent disk, then Postgres (§11).
 
 ## 11. Performance considerations
 
-**Targets.** p95 under 300 ms for list and insights on the deployed app with 10,000
-employees, and seeding 10,000 employees in under 2 seconds.
+**Targets.**
+- p95 under 300 ms for list and insights on the deployed app with 10,000 employees,
+  measured on a warm instance.
+- Seeding 10,000 employees in under 2 seconds locally.
 
-Measured numbers, from the real code and the deployed Machine, will be recorded in
-`docs/performance.md` (slice S10).
+The free host's 0.1 CPU is the binding constraint, and cold start (up to about a minute)
+is outside our control. Measured numbers, from the real code and the deployed instance,
+will be recorded in `docs/performance.md` (slices S2 and S10). If insights miss the
+target, their responses are cached in memory and the cache is cleared on every write,
+which is cheap with one process and one writer.
 
 **At 10,000 rows:**
 - Every query is a full scan or close to one, which is still cheap at this size. No
   caching or precomputed aggregates are planned.
-- The UI uses server-side paging, so there is no virtualised table.
+- The directory uses server-side paging (the Data Grid in server mode), so the browser
+  only ever holds one page of at most 100 rows.
 - The UI keeps the previous page visible while the next one loads, and search waits
   300 ms after typing stops.
 

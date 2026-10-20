@@ -42,5 +42,5 @@ password (not HTTP Basic). CSV export is in scope; CSV import is a stretch goal.
 
 - Every core pay question is answered within two clicks of the Insights page, and a
   country's figures match Excel's results on its CSV export.
-- With 10,000 employees deployed, list and insights responses take under 300 ms (p95).
+- Deployed and warm, list and insights take under 300 ms (p95) with 10,000 employees.
 - The API enforces every business rule, and fast, repeatable tests in CI cover each one.

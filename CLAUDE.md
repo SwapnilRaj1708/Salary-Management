@@ -24,6 +24,16 @@ task conflicts with them, stop and ask.
 - No new dependency without saying why and what the alternative was. Pin exact versions.
 - Log anything notable (an AI mistake, a surprising library behaviour) in `docs/ai/log.md`.
 
+## Git
+
+- Never commit or push to `main`.
+- Each change gets its own branch off `main`: `feat/…`, `fix/…`, `docs/…`, `chore/…`,
+  `ci/…`, `refactor/…` or `test/…`.
+- Changes reach `main` only through a pull request that passed CI. Merge with a merge
+  commit, never squash.
+- The candidate is the commit author. Commits written with the agent end with a
+  `Co-Authored-By` trailer.
+
 ## Conventions
 
 - **Layout:** npm workspaces `api/`, `web/`, `shared/`. Inside `api/src`, use feature folders
@@ -61,7 +71,13 @@ task conflicts with them, stop and ask.
   - One behaviour per test, with a sentence-style name.
   - A fresh in-memory database per test, with the real migrations.
   - No network and no sleeps.
-- **Web:** use Mantine components. Server state lives only in the hooks in
+- **Web:**
+  - UI is built from shadcn/ui components (added with the shadcn CLI into
+    `web/src/components/ui`) and styled with Tailwind.
+  - MUI is used only for the employee directory's Data Grid.
+  - Routes and search params use TanStack Router, and search params are validated with
+    the shared zod schemas.
+  - Server state lives only in the hooks in
   `src/api/queries.ts`; never call `fetch` inside components. Filters live in the URL.
 - **Migrations:** never edit a committed migration; add a new one.
 - **Never commit** the assessment brief or `.docx`, `.db` files, or secrets.
