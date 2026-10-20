@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+
+# Local SQLite databases (never committed)
+*.db
+*.db-shm
+*.db-wal
+api/data/
+
+# The assessment brief is the recruiter's material and stays out of the repo
+*.docx
+
+.DS_Store
