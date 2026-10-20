@@ -37,7 +37,8 @@ How changes reach `main`. The reasoning is in [decision P4](docs/decisions.md#de
 
 ## How `main` is protected
 
-The repo owner sets this up once in the GitHub UI.
+The repo owner sets this up once in the GitHub UI, **before the first pull request
+merges**. Otherwise even that first merge could be squashed.
 
 **Settings → General → Pull Requests:**
 - Allow merge commits: **on**. Allow squash merging: **off**. Allow rebase merging:

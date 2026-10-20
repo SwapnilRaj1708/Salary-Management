@@ -106,9 +106,12 @@ What the agent did:
 > up. And yes, you can use a Render free account and Vercel if required."
 
 What the agent did:
-1. **Ran four research agents in parallel.** Each verified its findings against the real
-   packages and official docs. The topics were MUI coverage, motion, hosting topology, and
-   GitHub rulesets.
+1. **Ran four research agents in parallel,** on MUI coverage, motion, hosting topology,
+   and GitHub rulesets. Each checked package behaviour against the real npm packages.
+   - The official doc sites were blocked from the sandbox.
+   - So doc claims came from the docs' GitHub source (rulesets), the packages' own
+     changelogs and type files (MUI), or web-search extracts of the official pages
+     (Vercel, Render).
 2. **D7 → MUI everywhere.**
    - MUI's free packages cover every screen.
    - No shadcn component qualified, because each one needs Tailwind. So Tailwind was
@@ -125,5 +128,11 @@ What the agent did:
 5. **P4 enforcement.** The new [CONTRIBUTING.md](../../../CONTRIBUTING.md) has the branch
    naming rules and the exact `main` ruleset settings. Required approvals are 0, because
    authors can't approve their own PRs.
-6. **Moved the planning work** to `docs/planning` and opened the first pull request into
-   `main`.
+6. **Ran a final review round.** Two critics checked these changes. Their main finds
+   (log rows 18–22) were:
+   - a version check that would have shown "server updating" after every docs-only merge;
+   - a smoke test scheduled before the endpoints it tested existed;
+   - three MUI API details;
+   - the need to set up the ruleset before the first merge.
+7. **Moved the planning work** to `docs/planning` and opened the first pull request into
+   `main` from it.

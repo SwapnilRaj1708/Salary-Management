@@ -38,7 +38,7 @@ for motion).
 | Directory | Search; filters | `TextField` with a search icon; `TextField select` for short lists; `Autocomplete` for job titles |
 | Directory | Status; export | `Chip`; `Button component="a"` pointing at the export URL |
 | Detail | Header; fields; salary history | `Breadcrumbs`, `Chip`, `Card` + `Grid`; `Table size="small"` |
-| Forms | Text; lookups; money; dates | `TextField`; `Autocomplete`; `TextField inputMode="decimal"` with a currency adornment (never `type="number"`); our `DateInput`, which wraps the X `DatePicker` and passes `YYYY-MM-DD` strings in and out |
+| Forms | Text; lookups; money; dates | `TextField`; `Autocomplete`; `TextField` with `slotProps={{ htmlInput: { inputMode: 'decimal' } }}` and a currency adornment (never `type="number"`). The `inputMode` prop on `TextField` itself lands on the wrapper `div`, not the input *(verified)*.; our `DateInput`, which wraps the X `DatePicker` and passes `YYYY-MM-DD` strings in and out |
 | Dialogs | Salary change; mark as left | `Dialog` with `DialogTitle`, `DialogContent` and `DialogActions` |
 | Feedback | Toasts; errors | `Snackbar` + `Alert` behind a small `ToastProvider` that shows one at a time; field `helperText`; `Alert` for request errors |
 | Insights | KPI tiles; tables | `Card` + `Typography`; `Table` with `TableSortLabel` |
@@ -57,7 +57,7 @@ Everything comes from one `createAppTheme()` in `web/src/theme/theme.ts`.
 | Typography | `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`; buttons not upper-cased | Tables and money use `font-variant-numeric: tabular-nums`, so digits line up |
 | Shape | `borderRadius: 8` | |
 | Density | `size="small"` text fields; `density="compact"` grid | The app is data-dense |
-| Defaults | `MuiButton.disableElevation`; `MuiDataGrid.disableRowSelectionOnClick` | Set once as component default props, not on each use |
+| Defaults | `MuiButton`: `disableElevation`, `loadingPosition: 'start'`; `MuiDataGrid`: `disableRowSelectionOnClick` | Set once as component default props, not on each use. The default `center` loading position hides a button's label behind the spinner *(verified)*. |
 
 ## 4. Motion
 
@@ -88,12 +88,12 @@ The theme also sets `motion: { reducedMotion: 'system' }`.
 
 | Where | How |
 |---|---|
-| Page change | View Transitions, through TanStack Router's `defaultViewTransition`. Only navigations that change the path animate: a short fade and an 8 px rise on the main content, while the app bar stays still. Filter, paging and search changes never animate. Browsers without support swap instantly. |
+| Page change | View Transitions, through TanStack Router's `defaultViewTransition`. Only navigations that change the path animate: a short fade and an 8 px rise on the main content, while the app bar stays still. Filter, paging and search changes never animate.<br/>Some browsers have View Transitions but not transition types (Chrome/Edge < 125, Safari < 18.2, Firefox < 147). There the router ignores `types` and transitions *every* navigation *(verified in the router source)*. So the global CSS sets `animation: none` on all `::view-transition-*` pseudo-elements, and declares the fade and rise only under `html:active-view-transition-type(page)`, inside `prefers-reduced-motion: no-preference`.<br/>Browsers without View Transitions swap instantly. |
 | Directory loading | The previous page stays visible, with the grid's `linear-progress` overlay. The overlay only appears if loading takes longer than 200 ms, so fast responses don't flicker. The first load shows a skeleton. |
 | Detail and Insights loading | `Skeleton`, sized like the final content so nothing shifts |
-| Saving | `Button loading` with the text "Saving…". The text carries the meaning, not the spinner. |
+| Saving | `Button loading` (theme default `loadingPosition: 'start'`) with the text "Saving…". The text carries the meaning, not the spinner. |
 | Dialogs and toasts | MUI defaults: dialogs fade, snackbars grow |
-| New salary-history row | One background-colour fade, from a success tint to transparent over about 1 s. Colour only, no movement. |
+| New salary-history row | One background-colour fade, from a success tint to transparent over `highlightFadeMs` (1000 ms, exported from `theme.ts`). Colour only, no movement, so it is exempt from the 375 ms ceiling. |
 | Charts | X Charts' 300 ms entry animation |
 | Waking the server | `ServerWakeGate`: silent for the first 1.5 s. Then an `Alert` with an indeterminate `LinearProgress`, an elapsed-seconds counter and the text "Waking the demo server. Free hosting sleeps after 15 min idle; about a minute. Demo data resets on wake." |
 
@@ -108,12 +108,17 @@ The theme also sets `motion: { reducedMotion: 'system' }`.
 
 - **Accessibility.**
   - Feedback motion stays at or under 375 ms, and nothing flashes.
-  - Progress is never shown by animation alone: buttons say "Saving…", and the grid sets
-    `aria-busy`.
+  - Progress is never shown by animation alone:
+    - buttons say "Saving…";
+    - the `Box` wrapping the grid sets `aria-busy={isFetching}`, because the Data Grid
+      sets none itself *(verified)*;
+    - the grid's loading overlay renders a `role="progressbar"`.
   - The wake banner states its message in text, with `role="status"`.
 - **Tests.**
-  - Tests render with `createAppTheme({ reducedMotion: 'always' })`. Every MUI
-    transition then completes immediately, so tests need no sleeps or fake timers.
+  - Tests render with `createAppTheme({ reducedMotion: 'always' })`. This theme also sets
+    `MuiDatePicker.defaultProps.reduceAnimations: true`, because the picker's calendar
+    transitions ignore `theme.motion` *(verified)*. Every MUI transition then completes
+    immediately, so tests need no sleeps or fake timers.
   - The old `react-transition-group` switch no longer affects MUI 9 *(verified)*.
   - jsdom has no View Transitions and no `matchMedia`, so the router and charts need no
     stubs.

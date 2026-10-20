@@ -80,7 +80,8 @@ task conflicts with them, stop and ask.
   - Dates go through the `DateInput` wrapper, which passes `YYYY-MM-DD` strings in and out.
   - The directory and Insights routes are lazy-loaded.
   - **Motion** follows `docs/design-system.md` §4:
-    - durations and easings come only from `theme.transitions`;
+    - durations and easings come only from `theme.transitions`. The one exception is the
+      colour-only history-row highlight (`highlightFadeMs`, exported from `theme.ts`);
     - your own keyframes go inside `prefers-reduced-motion: no-preference`;
     - money values are never animated;
     - tests use `createAppTheme({ reducedMotion: 'always' })`.

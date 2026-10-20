@@ -388,7 +388,7 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
     the same data.
   - Upgrade paths if data must persist are listed in [decisions.md](decisions.md) (P3).
 - **Image.**
-  - Every stage uses `node:22.22-bookworm-slim`, which is glibc-based and matches
+  - Every stage uses `node:22.22.3-bookworm-slim`, which is glibc-based and matches
     better-sqlite3's prebuilt binaries.
   - Install with `npm ci --ignore-scripts`, then build the web app with Vite.
   - The runtime stage gets production dependencies only. It keeps `shared/` at the same
@@ -408,12 +408,24 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
 - **Waking up.** The SPA's `ServerWakeGate` polls `/api/health` every 3 s with a 15 s
   timeout per attempt. Render's HTML loading page, a 502 or a timeout all count as "still
   waking" (design-system.md §4).
-  - If S2 measures wake plus boot above about 90 s, the server listens *before* seeding,
-    and `/api/health` returns 503 until the seed is done.
-  - The UI deploys before the API (about a minute after a merge, against several), so API
-    changes stay backward-compatible. If `/api/health`'s version differs from the UI's,
-    the UI says the server is updating.
-- **Health.** `GET /api/health` returns the deployed commit (`RENDER_GIT_COMMIT`) and
+  - **Fallback if wake plus boot is too slow.** If it exceeds about 90 s, measured on
+    Render once the boot seed lands (S4), boot changes:
+    - the server listens *before* seeding;
+    - seeding runs in batches, one transaction per 500 employees, yielding with
+      `await setImmediate()` between batches and never inside a transaction;
+    - `/api/health` returns 503 until the seed is done.
+
+    The batches matter because better-sqlite3 is synchronous, and Render's health check
+    needs an answer within 5 s.
+  - **The UI can be newer than the API.** The UI deploys about a minute after a merge,
+    the API several minutes later, so API changes stay backward-compatible.
+    - `shared/` exports a numeric `API_VERSION`, bumped only when the UI needs a newer
+      API, and `/api/health` returns it.
+    - In production builds only, a UI whose `API_VERSION` is ahead says the server is
+      updating. Previews always call the production API, so they skip the check.
+    - Commit SHAs are not compared, because a docs-only merge redeploys Vercel but not
+      Render.
+- **Health.** `GET /api/health` returns `API_VERSION`, the deployed commit (`RENDER_GIT_COMMIT`), and
   imports from `shared/`, so the first deploy proves type stripping through the symlink.
   CI builds and runs the image and calls `curl /api/health` on every pull request. Render
   checks the same endpoint.
