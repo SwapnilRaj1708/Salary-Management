@@ -16,7 +16,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "verify": "npm run lint && npm run typecheck && npm test"
+    "verify": "npm run lint && npm run typecheck && npm test",
+    "start": "node api/src/main.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
