@@ -3,7 +3,9 @@ import { loadConfig } from './config.ts';
 
 const config = loadConfig(process.env);
 
-const server = buildApp({ config }).listen(config.port, '0.0.0.0', () => {
+const server = buildApp({ config }).listen(config.port, '0.0.0.0', (error) => {
+  // Express 5 hands bind errors (EADDRINUSE, EACCES) to this callback instead of throwing.
+  if (error) throw error;
   console.log(`API listening on :${config.port} (version ${config.version})`);
 });
 
