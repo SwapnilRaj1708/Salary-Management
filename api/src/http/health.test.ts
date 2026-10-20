@@ -10,11 +10,8 @@ describe('GET /api/health', () => {
     const res = await request(app).get('/api/health');
 
     expect(res.status).toBe(200);
-    expect(HealthResponse.parse(res.body)).toEqual({
-      status: 'ok',
-      version: 'abc1234',
-      apiVersion: API_VERSION,
-    });
+    expect(res.body).toEqual({ status: 'ok', version: 'abc1234', apiVersion: API_VERSION });
+    expect(HealthResponse.safeParse(res.body).success).toBe(true);
   });
 
   it('tells every cache not to store the response', async () => {
