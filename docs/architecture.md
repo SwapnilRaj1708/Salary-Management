@@ -7,13 +7,15 @@ This document covers how v1 is built. The reasons behind each choice are in
 
 One deployable unit: a Node.js API that also serves the built React app. It uses a single
 SQLite file. On the free host that file lives on temporary disk and is re-seeded at every
-boot (§10).
+boot (§10). In production, Vercel's CDN serves the same SPA and proxies `/api/*` to the
+container, so the browser sees one origin.
 
 ```mermaid
 flowchart LR
   subgraph Browser
-    SPA["React 19 SPA (Vite build)<br/>shadcn/ui + Tailwind · MUI X Data Grid<br/>TanStack Router + Query · filters in the URL"]
+    SPA["React 19 SPA (Vite build)<br/>MUI · MUI X Data Grid, Charts, Date Pickers<br/>TanStack Router + Query · filters in the URL"]
   end
+  CDN["Vercel CDN (free)<br/>static SPA · rewrites /api/* to Render"]
   subgraph Container["Docker container (one instance)"]
     subgraph API["Node 22 · Express 5 · TypeScript (type stripping, no build)"]
       MW["Middleware<br/>helmet · json body limit · session auth"]
@@ -27,17 +29,22 @@ flowchart LR
   end
   DB[("SQLite file (WAL, STRICT tables)<br/>re-seeded at boot on the free host")]
   SH[["shared/<br/>zod contracts · enums · reference data · money"]]
-  SPA -- "same-origin /api/*, session cookie" --> MW --> RT --> SV --> RP --> DB
+  SPA -- "same-origin: SPA + /api/*, session cookie" --> CDN
+  CDN -- "/api/* proxied" --> MW --> RT --> SV --> RP --> DB
   SV --> DM
   RT --> ERR
-  SPA -- "GET / and /assets/*" --> ST
+  SPA -. "fallback: the Render URL serves the whole app" .-> ST
   SH -.-> RT
   SH -.-> SPA
 ```
 
-Why one container: there is one user and about 10,000 rows. Serving the SPA from the API
-keeps everything same-origin, so there is no CORS and the cookie story stays simple. It
-also gives one thing to deploy, monitor and explain.
+**Why one container:** there is one user and about 10,000 rows. The container serves both
+the API and the SPA, so it works on its own and the image can be tested as one unit.
+
+**Why Vercel in front:** the free Render instance sleeps. Vercel keeps the UI instantly
+available, so the SPA can show its own "waking the server" state. Because Vercel proxies
+`/api/*`, the browser still sees one origin: no CORS, and the cookie story stays simple
+(§9, §10).
 
 ## 2. Repository layout
 
@@ -56,11 +63,12 @@ api/      @salary/api     Express API, seed script; runs .ts directly on Node 22
     auth/ employees/ insights/ export/
                           feature folders: routes.ts, service.ts, repository.ts (+ tests)
     seed/                 prng, catalogue, generate (pure), write, cli
-web/      @salary/web     React + Vite + Tailwind/shadcn/ui, MUI X Data Grid, TanStack Router
-  src/                    routes, features/{auth,employees,insights}, api client & hooks
+web/      @salary/web     React + Vite + MUI (Material UI, X Data Grid, X Charts, X Date Pickers)
+  src/                    routes, features/{auth,employees,insights}, theme/, api client & hooks
+  vercel.json             SPA hosting and the /api/* rewrite to Render
 shared/   @salary/shared  imported as TypeScript source by both api and web, no build
   src/                    zod contracts, enums, countries/currencies/FX snapshot, money
-docs/                     requirements, decisions, architecture, plan, ai/
+docs/                     requirements, decisions, architecture, design system, plan, ai/
 ```
 
 ## 3. Layering rules
@@ -332,8 +340,11 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
   - Wrong email and wrong password get the same error.
 - **Sessions.**
   - The token is 32 random bytes, sent in a cookie named `sid`. The cookie is `HttpOnly`,
-    `SameSite=Lax`, `Path=/`, and `Secure` in production. Tests run on http and set
-    `Secure` off.
+    `SameSite=Lax`, `Path=/`, and `Secure` in production.
+  - `Secure` comes from config, not from `req.secure`, which depends on proxy settings.
+    Tests run on http and set `Secure` off.
+  - The cookie never sets `Domain`, so it stays host-only. That keeps it working behind
+    Vercel's proxy, where the browser only ever sees the Vercel host.
   - Only the SHA-256 of the token is stored, so a copy of the database contains no usable
     sessions.
   - Sessions expire 8 hours after login. Logout deletes the row.
@@ -353,9 +364,24 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
 
 ## 10. Deployment
 
-- **Host: Render's free web service**, running our Docker image. It has 512 MB RAM and
+- **Public URL: Vercel (Hobby, free).**
+  - Vercel builds `web/`: the project's Root Directory is `web`, the install command is
+    `npm ci`, and the output is `dist`. Pointing it at the repo root would turn files in
+    `api/` into serverless functions *(verified with Vercel's own detector)*.
+  - `web/vercel.json` rewrites `/api/:path*` to the Render service and everything else to
+    `index.html`. It also sets `x-vercel-enable-rewrite-caching: 0` on `/api`, so user
+    data is never cached. As a second guard, the API sends `Cache-Control: no-store`.
+  - A proxied request fails after 120 s, which is longer than a wake. The SPA still
+    polls `/api/health` with short timeouts rather than holding one request.
+  - Pull requests get preview deployments of the UI, which call the production API.
+- **API host: Render's free web service**, running our Docker image. It has 512 MB RAM and
   0.1 CPU, and sleeps after 15 minutes without traffic. The free tier has no persistent
   disk, so the SQLite file is temporary.
+  - `render.yaml` sets: `runtime: docker`, `plan: free`, `branch: main`,
+    `autoDeployTrigger: checksPass`, `healthCheckPath: /api/health`, and a build filter
+    that ignores `docs/**`, so a docs-only merge doesn't redeploy and reset the data.
+  - The Render URL serves the whole app too, as the fallback if the Vercel proxy ever
+    misbehaves.
   - Every boot starts from an empty database and seeds it. Data resets whenever the
     instance sleeps or redeploys.
   - The login page and README say so. The seed is deterministic, so every reviewer sees
@@ -379,6 +405,14 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
   6. Create the HR user if there is none.
   7. Listen.
   8. On SIGTERM, close the server and then the database.
+- **Waking up.** The SPA's `ServerWakeGate` polls `/api/health` every 3 s with a 15 s
+  timeout per attempt. Render's HTML loading page, a 502 or a timeout all count as "still
+  waking" (design-system.md §4).
+  - If S2 measures wake plus boot above about 90 s, the server listens *before* seeding,
+    and `/api/health` returns 503 until the seed is done.
+  - The UI deploys before the API (about a minute after a merge, against several), so API
+    changes stay backward-compatible. If `/api/health`'s version differs from the UI's,
+    the UI says the server is updating.
 - **Health.** `GET /api/health` returns the deployed commit (`RENDER_GIT_COMMIT`) and
   imports from `shared/`, so the first deploy proves type stripping through the symlink.
   CI builds and runs the image and calls `curl /api/health` on every pull request. Render
@@ -412,6 +446,8 @@ which is cheap with one process and one writer.
   measurements miss the target.
 - The directory uses server-side paging (the Data Grid in server mode), so the browser
   only ever holds one page of at most 100 rows.
+- The heavy routes are lazy-loaded: the directory (Data Grid) and Insights (charts). In a
+  probe, everything together was about 425 KB gzip, and React plus MUI core about 164 KB.
 - The UI keeps the previous page visible while the next one loads, and search waits
   300 ms after typing stops.
 

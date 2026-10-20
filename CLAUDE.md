@@ -27,8 +27,8 @@ task conflicts with them, stop and ask.
 ## Git
 
 - Never commit or push to `main`.
-- Each change gets its own branch off `main`: `feat/…`, `fix/…`, `docs/…`, `chore/…`,
-  `ci/…`, `refactor/…` or `test/…`.
+- Each change gets its own branch off `main`, named `<type>/<topic>`, e.g.
+  `feat/s1-walking-skeleton`. Full rules are in `CONTRIBUTING.md`.
 - Changes reach `main` only through a pull request that passed CI. Merge with a merge
   commit, never squash.
 - The candidate is the commit author. Commits written with the agent end with a
@@ -72,9 +72,18 @@ task conflicts with them, stop and ask.
   - A fresh in-memory database per test, with the real migrations.
   - No network and no sleeps.
 - **Web:**
-  - UI is built from shadcn/ui components (added with the shadcn CLI into
-    `web/src/components/ui`) and styled with Tailwind.
-  - MUI is used only for the employee directory's Data Grid.
+  - MUI everywhere: Material UI plus the free MUI X Data Grid, Charts and Date Pickers.
+    No Tailwind.
+  - shadcn/ui only where the decision log records it as clearly better. None does in v1.
+  - Style with `sx`, `Stack`, `Grid` and theme tokens; no hard-coded colours or durations.
+  - Import icons by path (`@mui/icons-material/Search`), never from the barrel.
+  - Dates go through the `DateInput` wrapper, which passes `YYYY-MM-DD` strings in and out.
+  - The directory and Insights routes are lazy-loaded.
+  - **Motion** follows `docs/design-system.md` §4:
+    - durations and easings come only from `theme.transitions`;
+    - your own keyframes go inside `prefers-reduced-motion: no-preference`;
+    - money values are never animated;
+    - tests use `createAppTheme({ reducedMotion: 'always' })`.
   - Routes and search params use TanStack Router. Each route's search schema is derived
     from the shared filter schema without `.strict()`, with `q` coerced to a string and
     `.catch()` defaults. The router JSON-parses search values, and a bad bookmark must
