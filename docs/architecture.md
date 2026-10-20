@@ -337,6 +337,9 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
   - Only the SHA-256 of the token is stored, so a copy of the database contains no usable
     sessions.
   - Sessions expire 8 hours after login. Logout deletes the row.
+  - On the free host the sessions table is wiped with the rest of the file when the
+    instance sleeps or redeploys. The user is then signed out, and the web app's
+    redirect on 401 takes them to the login page.
   - A new token is created at every login.
 - **CSRF.**
   - The app is same-origin and CORS is off.
@@ -380,8 +383,9 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
   imports from `shared/`, so the first deploy proves type stripping through the symlink.
   CI builds and runs the image and calls `curl /api/health` on every pull request. Render
   checks the same endpoint.
-- **Deploys.** Render deploys `main` automatically. `main` only changes through pull
-  requests that passed CI (decision P4).
+- **Deploys.** Render deploys `main` automatically after its CI checks pass
+  (`autoDeployTrigger: checksPass`). `main` only changes through pull requests that
+  passed CI, enforced by a GitHub ruleset (decision P4).
 - **Resetting data locally.** `npm run seed -- --reset`. There is deliberately no env
   flag for this, because a forgotten flag would wipe data on every restart.
 - **Single instance.** SQLite has one writer, so there is exactly one instance. The growth
@@ -394,15 +398,18 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
   measured on a warm instance.
 - Seeding 10,000 employees in under 2 seconds locally.
 
-The free host's 0.1 CPU is the binding constraint, and cold start (up to about a minute)
-is outside our control. Measured numbers, from the real code and the deployed instance,
+The free host's 0.1 CPU is the binding constraint. Cold start is Render's wake-up (up to
+about a minute) plus our own boot, which seeds 10,000 employees and hashes the HR password
+before it listens. The 2-second seed target is local only, so boot time on the deployed
+instance is measured too. Measured numbers, from the real code and the deployed instance,
 will be recorded in `docs/performance.md` (slices S2 and S10). If insights miss the
 target, their responses are cached in memory and the cache is cleared on every write,
 which is cheap with one process and one writer.
 
 **At 10,000 rows:**
 - Every query is a full scan or close to one, which is still cheap at this size. No
-  caching or precomputed aggregates are planned.
+  precomputed aggregates are planned. Caching is only the fallback above, if deployed
+  measurements miss the target.
 - The directory uses server-side paging (the Data Grid in server mode), so the browser
   only ever holds one page of at most 100 rows.
 - The UI keeps the previous page visible while the next one loads, and search waits

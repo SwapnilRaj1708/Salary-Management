@@ -75,8 +75,10 @@ task conflicts with them, stop and ask.
   - UI is built from shadcn/ui components (added with the shadcn CLI into
     `web/src/components/ui`) and styled with Tailwind.
   - MUI is used only for the employee directory's Data Grid.
-  - Routes and search params use TanStack Router, and search params are validated with
-    the shared zod schemas.
+  - Routes and search params use TanStack Router. Each route's search schema is derived
+    from the shared filter schema without `.strict()`, with `q` coerced to a string and
+    `.catch()` defaults. The router JSON-parses search values, and a bad bookmark must
+    fall back to defaults instead of showing an error.
   - Server state lives only in the hooks in
   `src/api/queries.ts`; never call `fetch` inside components. Filters live in the URL.
 - **Migrations:** never edit a committed migration; add a new one.

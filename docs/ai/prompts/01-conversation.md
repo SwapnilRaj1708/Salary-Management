@@ -73,7 +73,8 @@ No design decision changed.
 > anyone; we will maintain separate branches for features, bug fixes, etc. 4. Free
 > hosting only."
 
-The candidate changed D7 and D14 and left the other decisions as proposed.
+The candidate changed D7 and D14, required free hosting (which replaced P3's Fly.io) and
+a branch-per-change policy (the new P4), and left the other decisions as proposed.
 
 What the agent did:
 1. **D7.** Proposed a split to keep two styling systems manageable: shadcn/ui + Tailwind
@@ -87,3 +88,11 @@ What the agent did:
 5. **Authorship.** Re-authored the 9 planning commits to the candidate, keeping dates,
    contents and the `Co-Authored-By` trailers. It force-pushed the feature branch with a
    lease check and set the repo's git identity for future commits.
+6. **Review round on these changes.** Two critics checked the edits. They found that:
+   - MUI's theme rejects shadcn's CSS variables unless `nativeColor` is on;
+   - the CSS layers need an explicit order;
+   - TanStack Router JSON-parses search params;
+   - Render deploys without waiting for CI by default;
+   - P4 was not enforced by anything.
+
+   All were fixed; see [log.md](../log.md) rows 14–17.

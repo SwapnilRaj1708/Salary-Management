@@ -23,7 +23,7 @@ Estimates are focused hours.
 |---|---|---|---|
 | **S0 Planning** ✅ | Clarifications, requirements, architecture, decisions, this plan, CLAUDE.md, AI log | – | done |
 | **S1 Skeleton** | npm workspaces, TS 6, Biome, Vitest; `buildApp()` with `/api/health` importing `shared/`; Tailwind + shadcn/ui app shell on TanStack Router, with a "demo data resets" notice; CI `verify` job | Health returns version; app shell renders | 2 h |
-| **S2 Deploy** | Dockerfile, `render.yaml`, CI Docker smoke test (build → run → curl health). Render auto-deploys `main`; this needs a free Render account connected to GitHub. Live URL. Measure cold start, login time and query latency on the 0.1 CPU instance. | Docker smoke in CI | 1.5 h |
+| **S2 Deploy** | Dockerfile, `render.yaml` (auto-deploy after CI checks pass), CI Docker smoke test (build → run → curl health). Ruleset on `main` and a merge-commit-only repo setting (P4). Needs a free Render account connected to GitHub. Live URL. Measure the skeleton's cold start on the 0.1 CPU instance. | Docker smoke in CI | 1.5 h |
 | **S3 Money** | `parseMoney` / `formatMoney` in `shared/` | Decimal places 0/2/3, rejects extra decimals, zero, negatives and non-numbers, Indian digit grouping, JPY formatting | 1.5 h |
 | **S4 Data + seed** | Schema migration with every table, including `users` and `sessions` (salary history references users), migration runner, reference sync, FX view, deterministic generator, seed CLI, seed-if-empty at boot | Bad dates rejected by CHECK; view converts JPY and INR correctly; same seed gives the same org; seed invariants (10,000 rows, every row passes the contract, cached salary = latest history row) | 2.5 h |
 | **S5 Auth** | HR-user provisioning, scrypt, login/logout/me, `requireAuth`, login page and route guard | 401 without a session; cookie flags; same error for wrong email or password; logout and expiry (fixed clock) | 2 h |
@@ -31,7 +31,7 @@ Estimates are focused hours.
 | **S7 Records** | Detail with history, create, edit, salary change, mark as left (API and UI) | Each rule in architecture §8; salary change is atomic; leavers read-only; duplicate email → 409 | 3.5 h |
 | **S8 Insights** | `percentile` and `histogram` (pure), 4 endpoints, Insights page (shadcn tables + a shadcn/Recharts distribution chart) | Excel fixtures (`[1,2,10]` → P90 = 8.4; median of an even count); nice bucket widths with empty bins kept; exact numbers on a hand-built fixture; leavers excluded | 3 h |
 | **S9 Export** | CSV escaping and the export endpoint and button | Quoting, formula-injection prefix, numbers left raw, BOM, filters respected | 1 h |
-| **S10 Ship** | README, performance numbers measured on the deployed app, AI log, demo video, tag `v1.0.0` | – | 2.5 h |
+| **S10 Ship** | README; performance numbers measured on the deployed app (cold start including the boot seed, login time, list and insights p95); AI log; demo video; tag `v1.0.0` | – | 2.5 h |
 
 **Total: about 22 hours.** That is about three focused days, with submission at the end of
 day 3.
@@ -94,19 +94,26 @@ GitHub Actions, on every pull request and on `main`:
 2. **docker-smoke:** build the image → run it → `curl /api/health`. This catches a broken
    image, such as the type-stripping symlink failure, before Render does.
 
-**Deploy.** Render deploys `main` automatically. `main` only changes through pull
-requests that passed CI, so everything deployed has passed both jobs. `/api/health`
-reports the deployed commit, which Render provides as `RENDER_GIT_COMMIT`.
+**Deploy.**
+- Render auto-deploys `main` only after its CI checks pass (`autoDeployTrigger:
+  checksPass` in `render.yaml`).
+- A GitHub ruleset on `main` requires a pull request with passing `verify` and
+  `docker-smoke` checks, and blocks direct pushes, force pushes and deletion. The repo
+  allows merge commits only.
+- So every deployed commit came through a reviewed PR and has passed both jobs, twice:
+  on the PR and on `main`.
+- `/api/health` reports the deployed commit, which Render provides as
+  `RENDER_GIT_COMMIT`.
 
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
 | Hosting surprises (account setup, cookies behind a proxy, image boot) | Deploy the skeleton on day 1 and boot the image in CI |
-| Free host limits: sleeps after 15 min idle (cold start up to about a minute), 0.1 CPU, data reset on every boot | Measured in S2. Login page and README say data resets. Open the URL a minute before a demo. If insights miss the latency target, cache their responses in memory and clear the cache on every write. |
+| Free host limits: sleeps after 15 min idle (cold start up to about a minute), 0.1 CPU, data reset on every boot | Cold start measured in S2, and again in S10 with the boot seed; login and query latency in S10. Login page and README say data resets. Open the URL a minute before a demo. If insights miss the latency target, cache their responses in memory and clear the cache on every write. |
 | Money bugs (float maths, JPY decimals, FX direction) | Integer minor units, string parsing, one conversion path, tests for 0, 2 and 3 decimal places |
 | A very new toolchain (Vite 8, Vitest 5, Tailwind 4, MUI 9, TanStack Router) | Exact version pins and a lockfile. The skeleton exercises every tool on day 1. `tsx` is the fallback for type stripping. |
-| Two styling systems (Tailwind and MUI) clash | MUI is used only for the Data Grid. CSS cascade layers and a shared set of CSS variables are set up in S1 and checked visually before S6. |
+| Two styling systems (Tailwind and MUI) clash | MUI is used only for the Data Grid. CSS cascade layers (order `theme, base, mui, components, utilities`) and shared CSS variables (MUI theme with `nativeColor`) are set up in S1 and checked visually before S6. |
 | AI-written code the candidate can't explain | Tests written first and reviewed as the spec; small diffs; the decision log; CLAUDE.md rules |
 | Scope creep | The "deliberately out" list, plus the cut order above |
 | Reviewers see different data | Seed is deterministic and runs on every boot, so every reviewer starts from the same data |
