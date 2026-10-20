@@ -17,6 +17,14 @@ describe('App shell', () => {
     expect(await screen.findByText(/data resets to the seeded 10,000 employees/)).toBeVisible();
   });
 
+  it('puts the page content in its own view-transition group, so the app bar stays still', async () => {
+    renderApp('/employees');
+
+    const main = await screen.findByRole('main');
+
+    expect(getComputedStyle(main).getPropertyValue('view-transition-name')).toBe('main-content');
+  });
+
   it('marks the current page in the main navigation', async () => {
     renderApp('/employees');
     const nav = await screen.findByRole('navigation', { name: 'Main' });
