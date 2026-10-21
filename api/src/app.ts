@@ -1,8 +1,12 @@
 import express, { type Express } from 'express';
+import type { Db } from './db/client.ts';
 import { healthRouter } from './http/health.ts';
 
 export type AppDeps = {
   config: { version: string };
+  db: Db;
+  /** Brings the database up to date on the first request; tests replace it to simulate failure. */
+  prepare?: (db: Db) => Promise<void>;
 };
 
 /** Builds the Express app without listening, so tests can drive it directly. */
