@@ -16,5 +16,20 @@ export function buildApp({ config }: AppDeps): Express {
   });
   app.use('/api', healthRouter({ version: config.version }));
 
+  // Requests routed into the API never fall back to the web app, so unknown API
+  // routes get problem+json like every other API error.
+  app.use('/api', (req, res) => {
+    res
+      .status(404)
+      .type('application/problem+json')
+      .json({
+        type: 'about:blank',
+        title: 'Not Found',
+        status: 404,
+        code: 'NOT_FOUND',
+        detail: `No API route for ${req.method} ${req.originalUrl}`,
+      });
+  });
+
   return app;
 }
