@@ -7,7 +7,7 @@ describe('loadConfig', () => {
   });
 
   it('reads the port and the deployed commit from the environment', () => {
-    expect(loadConfig({ PORT: '8080', RENDER_GIT_COMMIT: 'abc1234' })).toEqual({
+    expect(loadConfig({ PORT: '8080', VERCEL_GIT_COMMIT_SHA: 'abc1234' })).toEqual({
       port: 8080,
       version: 'abc1234',
     });
