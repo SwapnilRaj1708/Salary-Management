@@ -42,9 +42,11 @@ async function expectHealthyApi(baseUrl, version) {
   assert.equal(body.status, 'ok');
   assert.equal(body.version, version);
 
-  const unknown = await get(`${baseUrl}/api/nope`);
-  assert.equal(unknown.status, 404);
-  assert.match(unknown.headers.get('content-type') ?? '', /^application\/problem\+json/);
+  for (const path of ['/api/nope', '/api']) {
+    const unknown = await get(`${baseUrl}${path}`);
+    assert.equal(unknown.status, 404, path);
+    assert.match(unknown.headers.get('content-type') ?? '', /^application\/problem\+json/, path);
+  }
 }
 
 async function checkLocalBoot() {
@@ -99,10 +101,12 @@ function serviceFor(path, routes) {
 
 function checkRouting() {
   const { routes } = readJson(join(OUTPUT, 'config.json'));
-  assert.equal(serviceFor('/api/health', routes), 'api');
-  assert.equal(serviceFor('/api/employees/42', routes), 'api');
-  assert.equal(serviceFor('/', routes), 'web');
-  assert.equal(serviceFor('/employees/42', routes), 'web');
+  for (const path of ['/api', '/api/', '/api/health', '/api/employees/42']) {
+    assert.equal(serviceFor(path, routes), 'api', path);
+  }
+  for (const path of ['/', '/apix', '/employees/42']) {
+    assert.equal(serviceFor(path, routes), 'web', path);
+  }
   pass('/api/* routes to the api service, every other path to web');
 
   const web = join(OUTPUT, 'services/web');
