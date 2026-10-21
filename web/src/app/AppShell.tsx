@@ -46,8 +46,8 @@ export function AppShell() {
         sx={{ py: 3, viewTransitionName: PAGE_CONTENT_TRANSITION }}
       >
         <Alert severity="info" sx={{ mb: 3 }}>
-          Demo environment: data resets to the seeded 10,000 employees whenever the free server
-          sleeps.
+          Demo environment with 10,000 generated employees. Changes are saved and seen by everyone
+          who uses this demo.
         </Alert>
         <Outlet />
       </Container>
