@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMoney } from './money.ts';
+import { formatMoney, parseMoney } from './money.ts';
 
 describe('parseMoney', () => {
   it.each([
@@ -80,5 +80,43 @@ describe('parseMoney', () => {
       ok: true,
       amountMinor: Number.MAX_SAFE_INTEGER,
     });
+  });
+});
+
+describe('formatMoney', () => {
+  it('writes INR with Indian digit grouping', () => {
+    expect(formatMoney({ amountMinor: 250_000_050, currency: 'INR' })).toBe('₹25,00,000.50');
+  });
+
+  it('writes JPY without decimals', () => {
+    expect(formatMoney({ amountMinor: 8_000_000, currency: 'JPY' })).toBe('¥8,000,000');
+  });
+
+  it('writes KWD with three decimals', () => {
+    expect(formatMoney({ amountMinor: 1_234_567, currency: 'KWD' })).toBe('KWD\u00a01,234.567');
+  });
+
+  it('always shows the currency decimals, even when they are zero', () => {
+    expect(formatMoney({ amountMinor: 120_000, currency: 'USD' })).toBe('$1,200.00');
+  });
+
+  it('uses symbols that tell dollar currencies apart', () => {
+    expect(formatMoney({ amountMinor: 100, currency: 'AUD' })).toBe('A$1.00');
+    expect(formatMoney({ amountMinor: 100, currency: 'CAD' })).toBe('CA$1.00');
+    expect(formatMoney({ amountMinor: 100, currency: 'USD' })).toBe('$1.00');
+  });
+
+  it('writes the largest exact amount without float rounding', () => {
+    expect(formatMoney({ amountMinor: Number.MAX_SAFE_INTEGER, currency: 'USD' })).toBe(
+      '$90,071,992,547,409.91',
+    );
+  });
+
+  it('writes a negative amount, such as a pay cut, with a minus sign', () => {
+    expect(formatMoney({ amountMinor: -50_000, currency: 'USD' })).toBe('-$500.00');
+  });
+
+  it('refuses a fractional minor amount, which would hide a rounding bug', () => {
+    expect(() => formatMoney({ amountMinor: 100.5, currency: 'USD' })).toThrow(RangeError);
   });
 });

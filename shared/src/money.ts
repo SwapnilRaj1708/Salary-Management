@@ -1,4 +1,6 @@
-import type { MinorUnit } from './reference.ts';
+import type { CurrencyCode, MinorUnit } from './reference.ts';
+
+export type Money = { amountMinor: number; currency: CurrencyCode };
 
 export type ParseMoneyError =
   | 'EMPTY'
@@ -34,4 +36,8 @@ export function parseMoney(input: string, minorUnit: MinorUnit): ParseMoneyResul
   const amountMinor = Number(digits);
   if (!Number.isSafeInteger(amountMinor)) return { ok: false, error: 'TOO_LARGE' };
   return { ok: true, amountMinor };
+}
+
+export function formatMoney(_money: Money): string {
+  throw new Error('Not implemented');
 }
