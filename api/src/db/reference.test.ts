@@ -68,6 +68,18 @@ describe('syncReferenceData', () => {
     });
   });
 
+  it('writes no rows when nothing changed, so each cold start costs only reads', async () => {
+    const db = await migratedDb();
+    await syncReferenceData(db);
+    const changesSoFar = async () =>
+      Number((await db.execute('SELECT total_changes() AS n')).rows[0]?.n);
+    const before = await changesSoFar();
+
+    await syncReferenceData(db);
+
+    expect(await changesSoFar()).toBe(before);
+  });
+
   it('updates a rate that changed in the code since the last run', async () => {
     const db = await migratedDb();
     await syncReferenceData(db);
