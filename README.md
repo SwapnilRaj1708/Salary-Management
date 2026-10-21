@@ -3,9 +3,10 @@
 A web app for ACME's HR manager to manage salaries for 10,000 employees across countries,
 and to answer "how do we pay people?". This is a take-home assessment for Incubyte.
 
-> **Status:** slice S1, the walking skeleton, is built. It has the API health endpoint,
-> the app shell and CI. The next slices are in [docs/plan.md](docs/plan.md). The live
-> URL, demo login and video will be added here as they exist.
+> **Status:** slices S1 (walking skeleton) and S2 (deployment setup) are built: the API
+> health endpoint, the app shell, CI, and the Vercel configuration. The next slices are in
+> [docs/plan.md](docs/plan.md). The live URL, demo login and video will be added here as
+> they exist.
 
 ## Run it locally
 
@@ -21,6 +22,8 @@ Other scripts:
 - `npm test -- --project web` runs one workspace's tests.
 - `npm run build` builds the web app.
 - `npm start` runs the API alone.
+- `node scripts/deploy-smoke.mjs` builds the repo with Vercel's CLI and boots the result,
+  as CI does.
 
 ## Read this first
 
@@ -38,12 +41,29 @@ Other scripts:
 
 ## Stack (planned)
 
-- **API:** Node 22, TypeScript, Express 5, SQLite (better-sqlite3).
+- **API:** Node 22, TypeScript, Express 5, SQLite through libSQL (`@libsql/client`).
 - **Web:** React 19, Vite, MUI (Material UI, X Data Grid, X Charts, X Date Pickers),
   TanStack Router and Query.
 - **Tests:** Vitest.
-- **Hosting:** Vercel (free) serves the UI and proxies the API to a Docker container on
-  Render's free tier. Demo data resets to the seed whenever the server sleeps.
+- **Hosting:** one Vercel project on the free Hobby plan, with two services
+  ([vercel.json](vercel.json)): the web app on `/` and the API on `/api`. Data lives in
+  Turso's free hosted SQLite, so it persists.
+
+## Deploy it
+
+The owner does this once. The reasons are in [architecture §10](docs/architecture.md#10-deployment).
+
+1. **Vercel:** import the GitHub repo as a new project. Leave the root directory at the
+   repository root. The framework preset should read "Services", detected from
+   `vercel.json`.
+2. **Turso** (needed from slice S4): create two databases in `aws-us-east-1`, next to
+   Vercel's default function region, one for production and one for previews. Create a
+   token for each.
+3. **Vercel → Settings → Environment Variables:** set `TURSO_DATABASE_URL` and
+   `TURSO_AUTH_TOKEN` for Production (production database) and for Preview (preview
+   database). From slice S5, also set `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
+4. **Seed each database once** (from slice S4): run `npm run seed -- --reset` with that
+   database's URL and token in the environment.
 
 Every change goes through its own branch and a pull request into `main`; nobody pushes to
 `main` directly. See [CONTRIBUTING.md](CONTRIBUTING.md).
