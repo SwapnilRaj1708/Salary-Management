@@ -28,6 +28,7 @@ import { pathToFileURL } from 'node:url';
 const VERCEL_CLI = 'vercel@65.0.0';
 const OUTPUT = '.vercel/output';
 const COMMIT = 'deploy-smoke-sha';
+const scratch = mkdtempSync(join(tmpdir(), 'deploy-smoke-'));
 
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const pass = (message) => console.log(`✓ ${message}`);
@@ -52,7 +53,8 @@ async function expectHealthyApi(baseUrl, version) {
 async function checkLocalBoot() {
   const { VERCEL_GIT_COMMIT_SHA: _, ...env } = process.env;
   const api = spawn(process.execPath, ['api/src/main.ts'], {
-    env: { ...env, PORT: '3999' },
+    // A throwaway SQLite file: the boot migrates it before listening.
+    env: { ...env, PORT: '3999', TURSO_DATABASE_URL: `file:${scratch}/local-boot.db` },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   try {
@@ -136,6 +138,8 @@ async function checkApiFunction() {
   cpSync(funcDir, root, { recursive: true, verbatimSymlinks: true });
 
   process.env.VERCEL_GIT_COMMIT_SHA = COMMIT;
+  // Loading libSQL proves its native binary is in the bundle; the first request migrates.
+  process.env.TURSO_DATABASE_URL = `file:${scratch}/function.db`;
   const { default: app } = await import(pathToFileURL(join(root, handler)).href);
   assert.equal(typeof app, 'function', `${handler} must default-export the Express app`);
   const server = createServer(app).listen(0, '127.0.0.1');

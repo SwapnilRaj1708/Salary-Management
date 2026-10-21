@@ -19,7 +19,7 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "verify": "npm run lint && npm run typecheck && npm test",
-    "start": "node api/src/main.ts",
+    "start": "npm run start -w @salary/api",
     "build": "npm run build -w @salary/web"
   },
   "devDependencies": {
