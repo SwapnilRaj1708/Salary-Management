@@ -195,3 +195,13 @@ What the agent did:
 4. **Added the `deploy-smoke` CI job.** It boots the API, runs Vercel's build and boots its
    output. It was tested by breaking the configuration on purpose; the first version hung
    instead of failing (log row 33).
+5. **Ran a review round** on the branch, from three angles: docs consistency, deploy
+   mechanics, and the libSQL design. A skeptic agent then tried to refute each angle's
+   findings. 12 of 17 held up. The main ones (log rows 34–38):
+   - an empty commit variable crashed the API;
+   - a bare `/api` fell through to the web app;
+   - a guarded `WHERE` doesn't fail a batch;
+   - error codes differ over Turso's HTTP protocol;
+   - the deploy gate claim was too strong.
+
+   All were fixed before the pull request was opened.
