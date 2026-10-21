@@ -13,6 +13,13 @@ export async function prepareDatabase(db: Db): Promise<void> {
  * success is kept: after a failure the next call tries again, instead of every later request
  * failing until the instance is recycled.
  */
-export function onceUntilSuccess(_task: () => Promise<void>): () => Promise<void> {
-  throw new Error('Not implemented');
+export function onceUntilSuccess(task: () => Promise<void>): () => Promise<void> {
+  let running: Promise<void> | undefined;
+  return () => {
+    running ??= task().catch((error: unknown) => {
+      running = undefined;
+      throw error;
+    });
+    return running;
+  };
 }
