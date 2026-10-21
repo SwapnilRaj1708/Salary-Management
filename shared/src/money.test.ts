@@ -1,0 +1,84 @@
+import { describe, expect, it } from 'vitest';
+import { parseMoney } from './money.ts';
+
+describe('parseMoney', () => {
+  it.each([
+    ['1200', 2, 120_000],
+    ['1200.5', 2, 120_050],
+    ['1200.05', 2, 120_005],
+    ['1.234', 3, 1_234],
+    ['8000000', 0, 8_000_000],
+  ] as const)('reads %j with %i decimal places as %i minor units', (input, minorUnit, minor) => {
+    expect(parseMoney(input, minorUnit)).toEqual({ ok: true, amountMinor: minor });
+  });
+
+  it.each([
+    ['1.15', 2, 115],
+    ['1.005', 3, 1_005],
+    ['0.29', 2, 29],
+  ] as const)(
+    'reads %j exactly, where float maths would be off by one',
+    (input, minorUnit, minor) => {
+      expect(parseMoney(input, minorUnit)).toEqual({ ok: true, amountMinor: minor });
+    },
+  );
+
+  it.each([
+    ['25,00,000.50', 250_000_050],
+    ['2,500,000.50', 250_000_050],
+    ['1,000', 100_000],
+  ])('accepts Indian and Western digit grouping in %j', (input, minor) => {
+    expect(parseMoney(input, 2)).toEqual({ ok: true, amountMinor: minor });
+  });
+
+  it('ignores spaces around the amount', () => {
+    expect(parseMoney('  1200.50 ', 2)).toEqual({ ok: true, amountMinor: 120_050 });
+  });
+
+  it.each([
+    ['10.123', 2],
+    ['8000000.5', 0],
+    ['8000000.00', 0],
+    ['1.2345', 3],
+  ] as const)('rejects %j, which has more than %i decimal places', (input, minorUnit) => {
+    expect(parseMoney(input, minorUnit)).toEqual({ ok: false, error: 'TOO_MANY_DECIMALS' });
+  });
+
+  it.each(['0', '0.00', '-5', '-1,000.00'])(
+    'rejects %j, which is not a positive amount',
+    (input) => {
+      expect(parseMoney(input, 2)).toEqual({ ok: false, error: 'NOT_POSITIVE' });
+    },
+  );
+
+  it.each(['', '   '])('reports %j as empty', (input) => {
+    expect(parseMoney(input, 2)).toEqual({ ok: false, error: 'EMPTY' });
+  });
+
+  it.each([
+    'abc',
+    '12abc',
+    '1e5',
+    '+5',
+    '.5',
+    '12.',
+    '1.2.3',
+    '1,00',
+    '12,34',
+    '1,0000',
+    'Infinity',
+  ])('rejects %j, which is not a plain decimal amount', (input) => {
+    expect(parseMoney(input, 2)).toEqual({ ok: false, error: 'NOT_A_NUMBER' });
+  });
+
+  it('rejects an amount too large to hold exactly as a JavaScript number', () => {
+    expect(parseMoney('90071992547409.92', 2)).toEqual({ ok: false, error: 'TOO_LARGE' });
+  });
+
+  it('accepts the largest amount a JavaScript number holds exactly', () => {
+    expect(parseMoney('90071992547409.91', 2)).toEqual({
+      ok: true,
+      amountMinor: Number.MAX_SAFE_INTEGER,
+    });
+  });
+});
