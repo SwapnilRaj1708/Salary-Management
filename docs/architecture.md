@@ -80,15 +80,19 @@ docs/                     requirements, decisions, architecture, design system, 
 - **Routes** handle HTTP only. They parse input with a shared zod schema, call one service
   method and map the result to a DTO. They contain no SQL and no business rules.
 - **Services** own each use-case. A use-case sends its writes as one
-  `db.batch([...], 'write')`, which libSQL runs as a single transaction: every statement
-  commits or none does *(verified)*. Services enforce rules that depend on stored data:
+  `db.batch([...], 'write')`, which libSQL runs as a single transaction: if a statement
+  fails, none of them commit *(verified on a local libSQL file)*. Services enforce rules that depend on stored data:
   the employee is active, the effective date is not before the latest change, and
   referenced ids exist. They throw typed `DomainError`s and know nothing about HTTP.
 - **Domain** code is pure: no I/O, no framework imports. The clock and the random number
   generator are injected. This is where most unit tests live.
 - **Repositories** hold the SQL, always parameterised. They map rows to camelCase objects.
   They translate SQLite unique-constraint errors into `ConflictError`, and a trigger's
-  named `RAISE` error into the matching `DomainError`.
+  named `RAISE` error into the matching `DomainError`. The mapping matches
+  `code === 'SQLITE_CONSTRAINT'` plus the constraint or `RAISE` name in the message. Over
+  Turso's HTTP protocol the client leaves `extendedCode` empty and prefixes the message
+  with "SQLite error:" *(verified in the client and server source)*, so extended codes and
+  exact messages can't be relied on. A unit test feeds the mapper both shapes.
 - **Numbers bind as REAL.** The libSQL client sends every JavaScript number as REAL, even
   whole ones *(verified)*. STRICT INTEGER columns still store integers, but arithmetic on
   a parameter is float arithmetic: `7 / ?` with 2 gives 3.5. So SQL never does integer
@@ -98,14 +102,19 @@ docs/                     requirements, decisions, architecture, design system, 
   another request can write between a service's check and its batch. So a rule that
   depends on stored data is checked twice:
   - by the service first, for a clear error;
-  - by the database inside the batch, through a CHECK, a trigger or a guarded `WHERE`.
-    For example, a trigger rejects a salary-history row dated before the employee's
-    latest one.
+  - by the database inside the batch, through a CHECK or a trigger that raises, so the
+    whole batch rolls back. For example, a trigger rejects a salary-history row for an
+    employee who has left, or one dated before the employee's latest change. A guarded
+    `WHERE` is not enough: a statement that matches no rows doesn't fail, so the rest of
+    the batch still commits *(verified)*.
 
-  Concurrent batches queue for the write lock and cannot corrupt data *(verified with 50
-  concurrent writes)*. They do not prevent a lost update from a stale form, such as two
-  open tabs editing the same employee, where the last save wins. With a single HR user
-  that is accepted in v1, so there is no optimistic locking.
+  Turso's single primary queues write batches, so concurrent requests cannot corrupt
+  data. Locally, one process runs its batches one after another; a second process on the
+  same file (a seed run during `npm run dev`) waits because file URLs open with a 5 s
+  `timeout`, instead of failing at once with `SQLITE_BUSY`. S4 checks concurrent writers
+  on a real Turso database. None of this prevents a lost update from a stale form, such
+  as two open tabs editing the same employee, where the last save wins. With a single HR
+  user that is accepted in v1, so there is no optimistic locking.
 
 Validation happens in three layers:
 1. **zod at the HTTP edge:** shape, types, ranges, real dates, and `.strict()` request
@@ -363,8 +372,8 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
     Node's 32 MiB default rejects these parameters.
   - The hash string records its own parameters, so they can be raised later.
   - Comparison uses `timingSafeEqual`.
-  - A hash costs real CPU time on a Vercel Function; S5 measures it. Whatever it is, it
-    is accepted, because it happens once per login, and lowering the cost would drop
+  - A hash costs real CPU time on a Vercel Function; S10 measures it as part of login
+    time. Whatever it is, it is accepted, because it happens once per login, and lowering the cost would drop
     below OWASP's minimum.
   - Wrong email and wrong password get the same error.
 - **Sessions.**
@@ -397,13 +406,14 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
 
   | Service | Code | Framework | Public path |
   |---|---|---|---|
-  | `api` | `api/`, entry `src/vercel.ts` | Express, as one Vercel Function | `/api/*` |
+  | `api` | `api/`, entry `src/vercel.ts` | Express, as one Vercel Function | `/api` and `/api/*` |
   | `web` | `web/` | Vite, static files on the CDN | every other path, from `/` |
 
   - Routing into a service keeps the full path, so the Express app keeps its `/api` prefix
     and runs unchanged locally.
   - Routing is final. An unknown `/api/...` path never falls through to the SPA; the API
-    answers it with a problem+json 404.
+    answers it with a problem+json 404. A bare `/api` needs its own rule, because
+    `/api/(.*)` doesn't match it *(verified with `vercel build`)*.
   - `web` answers every path it has no file for with `index.html`, so deep links work.
   - The frontend has to be a named service. With `services`, Vercel rejects top-level
     `framework`, `buildCommand` and `outputDirectory` *(verified with `vercel build`)*. It
@@ -427,16 +437,27 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
   - Locally the URL defaults to a SQLite file under `api/data/` (gitignored). Tests use
     `:memory:`.
 - **Startup.** A function has no boot step. So the first request on a fresh instance
-  prepares the database once, and the requests after it await the same promise:
+  prepares the database, and the requests after it await the same promise:
   1. Validate config. In production the API refuses to serve without the database
      variables, `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
-  2. Apply pending migrations. Each one runs as a single batch together with its
-     `schema_migrations` row. Two instances racing to apply the same migration can't both
-     succeed: the loser's batch fails as a whole, and it re-reads the list.
+  2. Apply pending migrations (below).
   3. Sync reference data from `shared/`, only when it changed.
   4. Create the HR user if there is none.
 
-  Locally, `main.ts` runs the same steps before it listens.
+  Only a successful preparation is kept. If it fails (Turso unreachable for a moment, say),
+  the promise is dropped and the next request tries again, instead of the warm instance
+  answering 500 until Vercel recycles it. Locally, `main.ts` runs the same steps before
+  it listens.
+- **Migrations** are numbered `.sql` files.
+  - `schema_migrations(version INTEGER PRIMARY KEY)` is created with `IF NOT EXISTS`
+    before the runner reads it.
+  - A file becomes batch statements by splitting on a marker line (`-- statement`), never
+    on `;`, because trigger bodies contain semicolons.
+  - Each migration runs as one write batch whose first statement inserts its version row.
+    Two instances racing to apply the same migration can't both succeed: the loser fails
+    on the key at once, its whole batch rolls back, and it re-reads the list.
+  - A runner test applies a migration containing a trigger and checks that every object
+    exists.
 - **Migrations stay backward-compatible:** expand first, contract in a later deploy.
   Requests to the previous deployment can still arrive after a new one has migrated.
 - **Seeding is a CLI step, not part of startup.** `npm run seed -- --reset` runs with a
@@ -447,8 +468,9 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
   - Changes persist and every reviewer sees them, as the demo notice says.
   - There is deliberately no env flag for resetting, because a forgotten flag would wipe
     the data on every cold start.
-- **Keeping the free database awake.** A daily Vercel Cron call runs one query, in case
-  Turso archives free databases after 10 days without traffic (decision P3).
+- **Keeping the free database awake.** A daily Vercel Cron call to `GET /api/health`,
+  which from S4 runs one query, in case Turso archives free databases after 10 days
+  without traffic (decision P3). Health is public, so the call needs no secret.
 - **Deploys.** Vercel deploys both services from the same commit: `main` to production on
   every merge, and a preview for every pull-request push. `main` only changes through
   pull requests whose `verify` and `deploy-smoke` checks passed (decision P4). Vercel
