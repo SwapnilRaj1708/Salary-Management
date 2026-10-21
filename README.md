@@ -3,9 +3,24 @@
 A web app for ACME's HR manager to manage salaries for 10,000 employees across countries,
 and to answer "how do we pay people?". This is a take-home assessment for Incubyte.
 
-> **Status:** planning is complete; the build starts with slice S1 in
-> [docs/plan.md](docs/plan.md). The live URL, demo login, video and setup steps will be
-> added here as they exist.
+> **Status:** slice S1, the walking skeleton, is built. It has the API health endpoint,
+> the app shell and CI. The next slices are in [docs/plan.md](docs/plan.md). The live
+> URL, demo login and video will be added here as they exist.
+
+## Run it locally
+
+You need Node 22.22.2 or later on the 22.x line (see `.nvmrc`).
+
+```sh
+npm ci
+npm run dev      # API on http://localhost:3000, web app on http://localhost:5173
+npm run verify   # lint, type-check and every test
+```
+
+Other scripts:
+- `npm test -- --project web` runs one workspace's tests.
+- `npm run build` builds the web app.
+- `npm start` runs the API alone.
 
 ## Read this first
 

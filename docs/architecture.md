@@ -91,8 +91,10 @@ docs/                     requirements, decisions, architecture, design system, 
   single HR user that is accepted in v1, so there is no optimistic locking.
 
 Validation happens in three layers:
-1. **zod at the HTTP edge:** shape, types, ranges, real dates, and `.strict()` objects so
-   unknown fields are rejected.
+1. **zod at the HTTP edge:** shape, types, ranges, real dates, and `.strict()` request
+   objects, so unknown fields are rejected. Response contracts in `shared/` are not
+   strict: an open tab can be older than the API (§10), so fields a newer API adds are
+   stripped rather than rejected.
 2. **Services:** rules that depend on stored state.
 3. **Database:** STRICT types, NOT NULL, CHECK, UNIQUE and foreign keys, as the last line
    of defence.
