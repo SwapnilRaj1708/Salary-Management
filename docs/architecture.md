@@ -235,11 +235,28 @@ Constraints that matter:
   `Money = { amountMinor: number, currency: string }`. Requests send only the integer:
   `salaryMinor` when creating an employee, `amountMinor` for a salary change. The server
   derives the currency from the employee's country.
-- **Parsing.** `parseMoney("25,00,000.50", minorUnit)` in `shared/` works on the string: it
-  splits on `.` and rejects more decimal places than the currency allows. It never does
-  float maths. For example, `Math.round(1.005 * 100)` gives `100`, not `101`.
+- **Parsing.** `parseMoney("25,00,000.50", minorUnit)` in `shared/` works on the string and
+  never does float maths. For example, `Math.round(1.005 * 100)` gives `100`, not `101`.
+  - It accepts plain digits, Western grouping (`1,234,567`) and Indian grouping
+    (`12,34,567`), with `.` as the decimal point. A decimal comma (`1.234,56`) is not
+    accepted, so `1,00` is an error rather than a guess.
+  - It returns `{ ok: true, amountMinor }` or `{ ok: false, error }`. The error is one of
+    `EMPTY`, `NOT_A_NUMBER`, `NOT_POSITIVE`, `TOO_MANY_DECIMALS` (JPY `100.00` too) and
+    `TOO_LARGE` (past 2^53 minor units), so forms can word each one.
 - **Formatting.** `formatMoney(money)` uses `Intl.NumberFormat`, with the number of
   decimals taken from our currency table rather than from the browser's locale data.
+  - Intl gets an exact decimal string built from the integer, never `amountMinor / 100`:
+    division prints the largest safe USD amount as `…409.90` instead of `…409.91`
+    *(verified)*. Browsers too old for string input fall back to a number, which is still
+    exact for any real salary.
+  - Amounts are written in `en-US`, so dollar currencies stay distinct in one table
+    (`$`, `A$`, `CA$`, `SGD`). INR uses `en-IN` for lakh and crore grouping
+    (`₹25,00,000.50`).
+  - A fractional `amountMinor` throws, because it means a value wasn't rounded in the
+    response mapper.
+- **Currencies.** AUD, BRL, CAD, EUR, GBP, INR, JPY, KWD, SGD and USD, one for each of the
+  seed's ten countries (chosen in S4). They cover 0 (JPY), 2 and 3 (KWD) decimal places.
+  A test checks each against Intl's currency data.
 - **One source for currency data.** Countries, currencies, their minor units and the
   exchange-rate snapshot (`unitsPerUsd`, `asOf`) live in `shared/src/reference.ts`.
   - The API copies them into the database when it starts (§10).
