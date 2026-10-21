@@ -1,4 +1,4 @@
-import type { CurrencyCode, MinorUnit } from './reference.ts';
+import { CURRENCIES, type CurrencyCode, type MinorUnit } from './reference.ts';
 
 export type Money = { amountMinor: number; currency: CurrencyCode };
 
@@ -38,6 +38,26 @@ export function parseMoney(input: string, minorUnit: MinorUnit): ParseMoneyResul
   return { ok: true, amountMinor };
 }
 
-export function formatMoney(_money: Money): string {
-  throw new Error('Not implemented');
+/**
+ * Writes an amount for display, with the decimals from our currency table. Intl gets an
+ * exact decimal string, never `amountMinor / 100`: dividing loses cents on large amounts.
+ */
+export function formatMoney({ amountMinor, currency }: Money): string {
+  if (!Number.isSafeInteger(amountMinor)) {
+    throw new RangeError(`amountMinor must be a safe integer, got ${amountMinor}`);
+  }
+  const { minorUnit, locale } = CURRENCIES[currency];
+  const digits = Math.abs(amountMinor)
+    .toString()
+    .padStart(minorUnit + 1, '0');
+  const whole = digits.slice(0, digits.length - minorUnit);
+  const fraction = digits.slice(digits.length - minorUnit);
+  const decimal = `${amountMinor < 0 ? '-' : ''}${whole}${minorUnit > 0 ? `.${fraction}` : ''}`;
+
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: minorUnit,
+    maximumFractionDigits: minorUnit,
+  }).format(decimal as Intl.StringNumericLiteral);
 }
