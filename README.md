@@ -3,10 +3,11 @@
 A web app for ACME's HR manager to manage salaries for 10,000 employees across countries,
 and to answer "how do we pay people?". This is a take-home assessment for Incubyte.
 
-> **Status:** slices S1 (walking skeleton) and S2 (deployment setup) are built: the API
-> health endpoint, the app shell, CI, and the Vercel configuration. The next slices are in
-> [docs/plan.md](docs/plan.md). The live URL, demo login and video will be added here as
-> they exist.
+> **Live:** https://salary-management-topaz.vercel.app
+>
+> **Status:** slices S1 (walking skeleton) and S2 (deployment) are done: the API health
+> endpoint, the app shell, CI, and the Vercel deployment. The next slices are in
+> [docs/plan.md](docs/plan.md). The demo login and video will be added here as they exist.
 
 ## Run it locally
 
