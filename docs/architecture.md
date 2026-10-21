@@ -5,69 +5,73 @@ This document covers how v1 is built. The reasons behind each choice are in
 
 ## 1. System overview
 
-One deployable unit: a Node.js API that also serves the built React app. It uses a single
-SQLite file. On the free host that file lives on temporary disk and is re-seeded at every
-boot (§10). In production, Vercel's CDN serves the same SPA and proxies `/api/*` to the
-container, so the browser sees one origin.
+One Vercel project with two services, served from one origin. `vercel.json` sends `/api/*`
+to the `api` service, the Express app running as a Vercel Function, and every other path
+to the `web` service, the static React build. Data lives in Turso, a hosted SQLite
+(libSQL) database in the same AWS region as the function. Locally the API is a plain Node
+process using a SQLite file, and tests use an in-memory database (§10).
 
 ```mermaid
 flowchart LR
   subgraph Browser
     SPA["React 19 SPA (Vite build)<br/>MUI · MUI X Data Grid, Charts, Date Pickers<br/>TanStack Router + Query · filters in the URL"]
   end
-  CDN["Vercel CDN (free)<br/>static SPA · rewrites /api/* to Render"]
-  subgraph Container["Docker container (one instance)"]
-    subgraph API["Node 22 · Express 5 · TypeScript (type stripping, no build)"]
+  subgraph Vercel["Vercel project (Hobby, free) · one origin"]
+    RW{{"vercel.json routing"}}
+    WEB["web service<br/>static SPA on the CDN · index.html for deep links"]
+    subgraph API["api service: Vercel Function · Node 22 · Express 5"]
       MW["Middleware<br/>helmet · json body limit · session auth"]
       RT["Routes (thin)<br/>zod parse → service → DTO"]
-      SV["Services<br/>use-cases · transactions · state rules"]
+      SV["Services<br/>use-cases · atomic batches · state rules"]
       DM["Domain (pure)<br/>salary-change rules · stats · CSV · clock"]
       RP["Repositories<br/>parameterised SQL only"]
       ERR["Error handler<br/>DomainError → problem+json"]
-      ST["Static SPA + index.html fallback"]
     end
   end
-  DB[("SQLite file (WAL, STRICT tables)<br/>re-seeded at boot on the free host")]
+  DB[("Turso: hosted libSQL<br/>STRICT tables · same region as the function")]
   SH[["shared/<br/>zod contracts · enums · reference data · money"]]
-  SPA -- "same-origin: SPA + /api/*, session cookie" --> CDN
-  CDN -- "/api/* proxied" --> MW --> RT --> SV --> RP --> DB
+  SPA -- "same origin: pages, /api/*, session cookie" --> RW
+  RW -- "every other path" --> WEB
+  RW -- "/api/*" --> MW --> RT --> SV --> RP --> DB
   SV --> DM
   RT --> ERR
-  SPA -. "fallback: the Render URL serves the whole app" .-> ST
   SH -.-> RT
   SH -.-> SPA
 ```
 
-**Why one container:** there is one user and about 10,000 rows. The container serves both
-the API and the SPA, so it works on its own and the image can be tested as one unit.
+**Why one Vercel project:** the UI and the API deploy together from the same commit, so
+they can't drift apart, and every pull request gets a full preview. The browser sees one
+origin: no CORS, and the cookie story stays simple (§9). A function has no minute-long
+wake like a sleeping free server, so the app needs no "waking the server" screen.
 
-**Why Vercel in front:** the free Render instance sleeps. Vercel keeps the UI instantly
-available, so the SPA can show its own "waking the server" state. Because Vercel proxies
-`/api/*`, the browser still sees one origin: no CORS, and the cookie story stays simple
-(§9, §10).
+**Why Turso:** a function has no lasting disk, so the data must live elsewhere. Turso is
+SQLite over the network. It keeps the same SQL and STRICT tables, and the same client
+(`@libsql/client`) also opens a local file or an in-memory database, so tests run the real
+migrations without a network. Data persists across deploys and idle time.
 
 ## 2. Repository layout
 
 npm workspaces, three packages:
 
 ```
-api/      @salary/api     Express API, seed script; runs .ts directly on Node 22
+vercel.json               the two Vercel services and the routing between them
+api/      @salary/api     Express API, seed script; runs .ts directly on Node 22 locally
   src/
-    main.ts               composition root: config → db → migrate → sync reference data
-                          → seed if empty → provision HR user → listen
+    main.ts               local server: config → prepare the database → listen
+    vercel.ts             Vercel entry point: default-exports the app
     app.ts                buildApp(deps): the Express app, no listen(); used by tests
     config.ts             env vars validated with zod
-    http/                 error handler, requireAuth, static SPA serving
-    db/                   connection, migration runner, migrations/*.sql, reference sync
+    http/                 error handler, requireAuth
+    db/                   client, migration runner, migrations/*.sql, reference sync
     domain/               pure functions: salary-change rules, stats, csv, clock
     auth/ employees/ insights/ export/
                           feature folders: routes.ts, service.ts, repository.ts (+ tests)
     seed/                 prng, catalogue, generate (pure), write, cli
 web/      @salary/web     React + Vite + MUI (Material UI, X Data Grid, X Charts, X Date Pickers)
   src/                    routes, features/{auth,employees,insights}, theme/, api client & hooks
-  vercel.json             SPA hosting and the /api/* rewrite to Render
 shared/   @salary/shared  imported as TypeScript source by both api and web, no build
   src/                    zod contracts, enums, countries/currencies/FX snapshot, money
+scripts/                  deploy-smoke.mjs, run by CI (§10)
 docs/                     requirements, decisions, architecture, design system, plan, ai/
 ```
 
@@ -75,20 +79,42 @@ docs/                     requirements, decisions, architecture, design system, 
 
 - **Routes** handle HTTP only. They parse input with a shared zod schema, call one service
   method and map the result to a DTO. They contain no SQL and no business rules.
-- **Services** own each use-case and its transaction, for example `db.transaction(() => …)()`.
-  They enforce rules that depend on stored data: the employee is active, the effective date
-  is not before the latest change, and referenced ids exist. They throw typed
-  `DomainError`s and know nothing about HTTP.
+- **Services** own each use-case. A use-case sends its writes as one
+  `db.batch([...], 'write')`, which libSQL runs as a single transaction: if a statement
+  fails, none of them commit *(verified on a local libSQL file)*. Services enforce rules that depend on stored data:
+  the employee is active, the effective date is not before the latest change, and
+  referenced ids exist. They throw typed `DomainError`s and know nothing about HTTP.
 - **Domain** code is pure: no I/O, no framework imports. The clock and the random number
   generator are injected. This is where most unit tests live.
-- **Repositories** hold the SQL, always parameterised. They map rows to camelCase objects
-  and translate SQLite unique-constraint errors into `ConflictError`.
+- **Repositories** hold the SQL, always parameterised. They map rows to camelCase objects.
+  They translate SQLite unique-constraint errors into `ConflictError`, and a trigger's
+  named `RAISE` error into the matching `DomainError`. The mapping matches
+  `code === 'SQLITE_CONSTRAINT'` plus the constraint or `RAISE` name in the message. Over
+  Turso's HTTP protocol the client leaves `extendedCode` empty and prefixes the message
+  with "SQLite error:" *(verified in the client and server source)*, so extended codes and
+  exact messages can't be relied on. A unit test feeds the mapper both shapes.
+- **Numbers bind as REAL.** The libSQL client sends every JavaScript number as REAL, even
+  whole ones *(verified)*. STRICT INTEGER columns still store integers, but arithmetic on
+  a parameter is float arithmetic: `7 / ?` with 2 gives 3.5. So SQL never does integer
+  maths on parameters; that happens in TypeScript (D10).
 - **Dependencies are wired by hand** with factory functions; there is no DI container.
-- **Never `await` inside a transaction.** better-sqlite3 transactions are synchronous, so
-  inside one process no other request can interleave with a write. Concurrent requests
-  therefore cannot corrupt data. They do not prevent a lost update from a stale form,
-  such as two open tabs editing the same employee, where the last save wins. With a
-  single HR user that is accepted in v1, so there is no optimistic locking.
+- **No interactive transactions** (decision D17). Function instances run side by side, so
+  another request can write between a service's check and its batch. So a rule that
+  depends on stored data is checked twice:
+  - by the service first, for a clear error;
+  - by the database inside the batch, through a CHECK or a trigger that raises, so the
+    whole batch rolls back. For example, a trigger rejects a salary-history row for an
+    employee who has left, or one dated before the employee's latest change. A guarded
+    `WHERE` is not enough: a statement that matches no rows doesn't fail, so the rest of
+    the batch still commits *(verified)*.
+
+  Turso's single primary queues write batches, so concurrent requests cannot corrupt
+  data. Locally, one process runs its batches one after another; a second process on the
+  same file (a seed run during `npm run dev`) waits because file URLs open with a 5 s
+  `timeout`, instead of failing at once with `SQLITE_BUSY`. S4 checks concurrent writers
+  on a real Turso database. None of this prevents a lost update from a stale form, such
+  as two open tabs editing the same employee, where the last save wins. With a single HR
+  user that is accepted in v1, so there is no optimistic locking.
 
 Validation happens in three layers:
 1. **zod at the HTTP edge:** shape, types, ranges, real dates, and `.strict()` request
@@ -96,8 +122,8 @@ Validation happens in three layers:
    strict: an open tab can be older than the API (§10), so fields a newer API adds are
    stripped rather than rejected.
 2. **Services:** rules that depend on stored state.
-3. **Database:** STRICT types, NOT NULL, CHECK, UNIQUE and foreign keys, as the last line
-   of defence.
+3. **Database:** STRICT types, NOT NULL, CHECK, UNIQUE, foreign keys and triggers, as the
+   last line of defence.
 
 ## 4. Data model
 
@@ -161,7 +187,8 @@ erDiagram
 ```
 
 `departments` and `job_titles` are plain `(id, name)` lists, with names unique regardless
-of case. All tables are `STRICT`.
+of case. `schema_migrations(version)` records the applied migrations (D2). All tables are
+`STRICT`.
 
 The single place where USD conversion is defined:
 
@@ -176,6 +203,10 @@ JOIN countries  co ON co.code = e.country_code
 JOIN currencies cu ON cu.code = co.currency_code;
 ```
 
+`power()` comes from SQLite's math functions. libSQL's local build has it *(verified)*, and
+Turso loads a math extension; S4 confirms it on a real Turso database. If it is missing,
+`currencies` stores `10^minor_unit` as a column instead.
+
 Indexes are added when a measured query needs them, and each is recorded in the
 performance notes. The starting set covers foreign-key lookups, `(country_code, status)`
 and the default sort `(full_name COLLATE NOCASE, id)`.
@@ -188,8 +219,10 @@ Constraints that matter:
   `'banana'`, `date()` returns NULL, and a CHECK that evaluates to NULL passes. A repository
   test inserts a bad date and expects the constraint to fail.
 - **Current salary is a cached column** kept next to the history (decision D5). The salary
-  change and the history row are written in the same transaction. Effective dates must be
-  on or after the latest change and no later than today, so the cache can never go stale.
+  change and the history row are written in the same batch. Effective dates must be on or
+  after the latest change and no later than today, so the cache can never go stale. A
+  trigger enforces the ordering inside the batch, so concurrent changes can't break it
+  (D17).
 - **There is no currency column on `employees`.** Currency is derived from the country,
   and country cannot change in v1. Each history row stores its own currency as a snapshot.
 
@@ -209,7 +242,7 @@ Constraints that matter:
   decimals taken from our currency table rather than from the browser's locale data.
 - **One source for currency data.** Countries, currencies, their minor units and the
   exchange-rate snapshot (`unitsPerUsd`, `asOf`) live in `shared/src/reference.ts`.
-  - The API copies them into the database at boot.
+  - The API copies them into the database when it starts (§10).
   - The web app imports them to format money.
   - The seed uses them to generate realistic local salaries.
 - **Conversion happens only in the `employee_salaries` view.** The list's USD sort, every
@@ -220,8 +253,9 @@ Constraints that matter:
   averages and medians are rounded once to the minor unit. Converted values are never
   stored.
 - **Limits.** JavaScript integers are exact up to 2^53, about 9×10^15. Per-currency sums
-  for 10,000 employees stay far below that. If high-denomination currencies such as IDR
-  are added at scale, sum queries switch to `safeIntegers()`.
+  for 10,000 employees stay far below that. Past 2^53 the client throws instead of
+  rounding *(verified)*. If high-denomination currencies such as IDR are added at scale,
+  the client switches to `intMode: 'bigint'`.
 
 ## 6. Metrics: why these, and how they are defined
 
@@ -266,7 +300,7 @@ All routes are under `/api` and use JSON. Every route needs a session except `he
 
 | Method & path | Input | Success |
 |---|---|---|
-| `GET /health` | – | `200 {status, version}` (version = git SHA) |
+| `GET /health` | – | `200 {status, version, apiVersion}` (version = the deployed commit) |
 | `POST /auth/login` | `{email, password}` | `200 {user}` and `Set-Cookie: sid` |
 | `POST /auth/logout` | – | `204`, deletes the session and clears the cookie |
 | `GET /auth/me` | – | `200 {user}` |
@@ -317,7 +351,7 @@ field list for validation failures:
 |---|---|
 | Create employee | Email is valid, stored lower-case and unique, including leavers. Referenced ids exist. `hireDate` is between 1950-01-01 and today. `salaryMinor` is a positive safe integer. The first history row is `hire`, effective on `hireDate`. |
 | Edit employee | Only name, email, title and department can change. Country and hire date are fixed in v1. A leaver cannot be edited (`EMPLOYEE_LEFT`). |
-| Salary change | The employee is active. The latest effective date ≤ `effectiveDate` ≤ today; the same day as the latest change is allowed, and the change recorded later wins. The amount differs from the current salary. The reason is one of `annual_review, promotion, market_adjustment, correction, other`, and `hire` is reserved for creation. A note is required when the reason is `other`. The history row and the cached current salary are written in one transaction. |
+| Salary change | The employee is active. The latest effective date ≤ `effectiveDate` ≤ today; the same day as the latest change is allowed, and the change recorded later wins. The amount differs from the current salary. The reason is one of `annual_review, promotion, market_adjustment, correction, other`, and `hire` is reserved for creation. A note is required when the reason is `other`. The history row and the cached current salary are written in one atomic batch. |
 | Mark as left | `leftOn` is ≥ both the hire date and the latest salary change, and ≤ today. Leavers drop out of insights and out of the default list. |
 
 **"Today"** is the calendar date in a configured IANA time zone (`APP_TIME_ZONE`), taken
@@ -328,31 +362,32 @@ from an injected clock. Tests pin the instant, so every date rule is determinist
 Assumption 4 says "basic authentication". This is read as a simple email-and-password login
 for a single HR role, not HTTP Basic, which has no logout and uses the browser's own prompt.
 
-- **Users table.** At boot, one HR user is created from `ADMIN_EMAIL` and `ADMIN_PASSWORD`
-  if the table is empty. In production the app refuses to start without them. The user's
-  id is recorded as `changed_by_user_id` on every salary change, which gives an audit trail.
+- **Users table.** At startup (§10), one HR user is created from `ADMIN_EMAIL` and
+  `ADMIN_PASSWORD` if the table is empty. In production the API refuses to serve without
+  them. The user's id is recorded as `changed_by_user_id` on every salary change, which
+  gives an audit trail.
 - **Passwords.**
   - Hashed with async `crypto.scrypt` using N=2^15, r=8, p=3, one of OWASP's
     recommended settings. Each hash needs just over 32 MiB, so `maxmem` is set to 64 MiB:
     Node's 32 MiB default rejects these parameters.
   - The hash string records its own parameters, so they can be raised later.
   - Comparison uses `timingSafeEqual`.
-  - On the free host's 0.1 CPU a hash takes a few seconds. That is accepted, because it
-    happens once per login, and lowering the cost would drop below OWASP's minimum.
+  - A hash costs real CPU time on a Vercel Function; S10 measures it as part of login
+    time. Whatever it is, it is accepted, because it happens once per login, and lowering the cost would drop
+    below OWASP's minimum.
   - Wrong email and wrong password get the same error.
 - **Sessions.**
   - The token is 32 random bytes, sent in a cookie named `sid`. The cookie is `HttpOnly`,
     `SameSite=Lax`, `Path=/`, and `Secure` in production.
   - `Secure` comes from config, not from `req.secure`, which depends on proxy settings.
     Tests run on http and set `Secure` off.
-  - The cookie never sets `Domain`, so it stays host-only. That keeps it working behind
-    Vercel's proxy, where the browser only ever sees the Vercel host.
+  - The cookie never sets `Domain`, so it stays host-only, on the one Vercel host that
+    serves both the app and the API.
   - Only the SHA-256 of the token is stored, so a copy of the database contains no usable
     sessions.
   - Sessions expire 8 hours after login. Logout deletes the row.
-  - On the free host the sessions table is wiped with the rest of the file when the
-    instance sleeps or redeploys. The user is then signed out, and the web app's
-    redirect on 401 takes them to the login page.
+  - Sessions live in the database, so they survive deploys and idle time. When one
+    expires, the web app's redirect on 401 takes the user to the login page.
   - A new token is created at every login.
 - **CSRF.**
   - The app is same-origin and CORS is off.
@@ -366,98 +401,125 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
 
 ## 10. Deployment
 
-- **Public URL: Vercel (Hobby, free).**
-  - Vercel builds `web/`: the project's Root Directory is `web`, the install command is
-    `npm ci`, and the output is `dist`. Pointing it at the repo root would turn files in
-    `api/` into serverless functions *(verified with Vercel's own detector)*.
-  - `web/vercel.json` rewrites `/api/:path*` to the Render service and everything else to
-    `index.html`. It also sets `x-vercel-enable-rewrite-caching: 0` on `/api`, so user
-    data is never cached. As a second guard, the API sends `Cache-Control: no-store`.
-  - A proxied request fails after 120 s, which is longer than a wake. The SPA still
-    polls `/api/health` with short timeouts rather than holding one request.
-  - Pull requests get preview deployments of the UI, which call the production API.
-- **API host: Render's free web service**, running our Docker image. It has 512 MB RAM and
-  0.1 CPU, and sleeps after 15 minutes without traffic. The free tier has no persistent
-  disk, so the SQLite file is temporary.
-  - `render.yaml` sets: `runtime: docker`, `plan: free`, `branch: main`,
-    `autoDeployTrigger: checksPass`, `healthCheckPath: /api/health`, and a build filter
-    that ignores `docs/**`, so a docs-only merge doesn't redeploy and reset the data.
-  - The Render URL serves the whole app too, as the fallback if the Vercel proxy ever
-    misbehaves.
-  - Every boot starts from an empty database and seeds it. Data resets whenever the
-    instance sleeps or redeploys.
-  - The login page and README say so. The seed is deterministic, so every reviewer sees
-    the same data.
-  - Upgrade paths if data must persist are listed in [decisions.md](decisions.md) (P3).
-- **Image.**
-  - Every stage uses `node:22.22.3-bookworm-slim`, which is glibc-based and matches
-    better-sqlite3's prebuilt binaries.
-  - Install with `npm ci --ignore-scripts`, then build the web app with Vite.
-  - The runtime stage gets production dependencies only. It keeps `shared/` at the same
-    relative path, so the workspace symlink still resolves: Node will not strip types
-    from files under `node_modules`.
-  - The process runs as the unprivileged `node` user, with a data directory created in the
-    image and owned by that user.
-- **Boot sequence.**
-  1. Validate config.
-  2. Open the database: WAL, `foreign_keys=ON`, `busy_timeout`.
-  3. Run migrations (numbered `.sql` files, tracked with `PRAGMA user_version`).
-  4. Sync reference data.
-  5. Seed 10,000 employees if the database is empty. On the free host it always is.
-  6. Create the HR user if there is none.
-  7. Listen.
-  8. On SIGTERM, close the server and then the database.
-- **Waking up.** The SPA's `ServerWakeGate` polls `/api/health` every 3 s with a 15 s
-  timeout per attempt. Render's HTML loading page, a 502 or a timeout all count as "still
-  waking" (design-system.md §4).
-  - **Fallback if wake plus boot is too slow.** If it exceeds about 90 s, measured on
-    Render once the boot seed lands (S4), boot changes:
-    - the server listens *before* seeding;
-    - seeding runs in batches, one transaction per 500 employees, yielding with
-      `await setImmediate()` between batches and never inside a transaction;
-    - `/api/health` returns 503 until the seed is done.
+- **One Vercel project (Hobby, free) with two services**, declared in `vercel.json`. The
+  project's framework preset is "Services", and its root directory is the repository root.
 
-    The batches matter because better-sqlite3 is synchronous, and Render's health check
-    needs an answer within 5 s.
-  - **The UI can be newer than the API.** The UI deploys about a minute after a merge,
-    the API several minutes later, so API changes stay backward-compatible.
-    - `shared/` exports a numeric `API_VERSION`, bumped only when the UI needs a newer
-      API, and `/api/health` returns it.
-    - In production builds only, a UI whose `API_VERSION` is ahead says the server is
-      updating. Previews always call the production API, so they skip the check.
-    - Commit SHAs are not compared, because a docs-only merge redeploys Vercel but not
-      Render.
-- **Health.** `GET /api/health` returns `API_VERSION`, the deployed commit (`RENDER_GIT_COMMIT`), and
-  imports from `shared/`, so the first deploy proves type stripping through the symlink.
-  CI builds and runs the image and calls `curl /api/health` on every pull request. Render
-  checks the same endpoint.
-- **Deploys.** Render deploys `main` automatically after its CI checks pass
-  (`autoDeployTrigger: checksPass`). `main` only changes through pull requests that
-  passed CI, enforced by a GitHub ruleset (decision P4).
-- **Resetting data locally.** `npm run seed -- --reset`. There is deliberately no env
-  flag for this, because a forgotten flag would wipe data on every restart.
-- **Single instance.** SQLite has one writer, so there is exactly one instance. The growth
-  path is a paid instance with a persistent disk, then Postgres (§11).
+  | Service | Code | Framework | Public path |
+  |---|---|---|---|
+  | `api` | `api/`, entry `src/vercel.ts` | Express, as one Vercel Function | `/api` and `/api/*` |
+  | `web` | `web/` | Vite, static files on the CDN | every other path, from `/` |
+
+  - Routing into a service keeps the full path, so the Express app keeps its `/api` prefix
+    and runs unchanged locally.
+  - Routing is final. An unknown `/api/...` path never falls through to the SPA; the API
+    answers it with a problem+json 404. A bare `/api` needs its own rule, because
+    `/api/(.*)` doesn't match it *(verified with `vercel build`)*.
+  - `web` answers every path it has no file for with `index.html`, so deep links work.
+  - The frontend has to be a named service. With `services`, Vercel rejects top-level
+    `framework`, `buildCommand` and `outputDirectory` *(verified with `vercel build`)*. It
+    is still served from `/`.
+  - There are no service bindings: the browser calls the API on the same origin, and
+    nothing renders on the server.
+  - The API's entry point is set explicitly. Vercel's detector would otherwise pick
+    `src/app.ts`, which has no default export. `engines.node: "22.x"` in
+    `api/package.json` keeps the function on the Node line CI tests, where Vercel's
+    default is 24 *(both verified with `vercel build`)*.
+  - Vercel compiles the API with its own bundler, so production doesn't use Node's type
+    stripping.
+  - The API sends `Cache-Control: no-store`, so user data is never cached.
+- **Database: Turso (free plan).**
+  - Two databases in `aws-us-east-1`, next to the function's default region `iad1`
+    (Washington, D.C.): one for production and one for previews.
+  - Vercel's environment variables `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` point
+    Production at the production database and Preview at the preview one. So pull-request
+    code, and its migrations, never touch production data. They are set by hand, because
+    Turso's Vercel Marketplace integration documents no split by environment.
+  - Locally the URL defaults to a SQLite file under `api/data/` (gitignored). Tests use
+    `:memory:`.
+- **Startup.** A function has no boot step. So the first request on a fresh instance
+  prepares the database, and the requests after it await the same promise:
+  1. Validate config. In production the API refuses to serve without the database
+     variables, `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
+  2. Apply pending migrations (below).
+  3. Sync reference data from `shared/`, only when it changed.
+  4. Create the HR user if there is none.
+
+  Only a successful preparation is kept. If it fails (Turso unreachable for a moment, say),
+  the promise is dropped and the next request tries again, instead of the warm instance
+  answering 500 until Vercel recycles it. Locally, `main.ts` runs the same steps before
+  it listens.
+- **Migrations** are numbered `.sql` files.
+  - `schema_migrations(version INTEGER PRIMARY KEY)` is created with `IF NOT EXISTS`
+    before the runner reads it.
+  - A file becomes batch statements by splitting on a marker line (`-- statement`), never
+    on `;`, because trigger bodies contain semicolons.
+  - Each migration runs as one write batch whose first statement inserts its version row.
+    Two instances racing to apply the same migration can't both succeed: the loser fails
+    on the key at once, its whole batch rolls back, and it re-reads the list.
+  - A runner test applies a migration containing a trigger and checks that every object
+    exists.
+- **Migrations stay backward-compatible:** expand first, contract in a later deploy.
+  Requests to the previous deployment can still arrive after a new one has migrated.
+- **Seeding is a CLI step, not part of startup.** `npm run seed -- --reset` runs with a
+  database's URL and token in the environment: once per database, and again whenever the
+  demo should be reset. Writing 10,000 employees over the network doesn't belong in a
+  request.
+  - The seed is deterministic, so every reviewer starts from the same data.
+  - Changes persist and every reviewer sees them, as the demo notice says.
+  - There is deliberately no env flag for resetting, because a forgotten flag would wipe
+    the data on every cold start.
+- **Keeping the free database awake.** A daily Vercel Cron call to `GET /api/health`,
+  which from S4 runs one query, in case Turso archives free databases after 10 days
+  without traffic (decision P3). Health is public, so the call needs no secret.
+- **Deploys.** Vercel deploys both services from the same commit: `main` to production on
+  every merge, and a preview for every pull-request push. `main` only changes through
+  pull requests whose `verify` and `deploy-smoke` checks passed (decision P4). Vercel
+  doesn't wait for `main`'s own CI run.
+- **Open tabs can be older than the API.** A tab loaded before a deploy keeps its SPA and
+  calls the new API. So API changes stay backward-compatible, and response contracts are
+  not strict (§3). `/api/health` returns `API_VERSION` from `shared/`, so a stale tab
+  could notice a newer API and offer a reload; v1 doesn't build that.
+- **Health.** `GET /api/health` returns its status, `API_VERSION` and the deployed commit
+  (`VERCEL_GIT_COMMIT_SHA`, or `dev` locally).
+- **Deploy smoke test in CI** (job `deploy-smoke`, `scripts/deploy-smoke.mjs`), on every
+  pull request and on `main`:
+  1. boots `node api/src/main.ts` and calls `/api/health`, which proves type stripping
+     through the workspace symlink;
+  2. builds the repo with Vercel's own CLI (pinned), as a deployment does;
+  3. checks the routing table: `/api/*` goes to `api`, every other path to `web`, and
+     `web` falls back to `index.html`;
+  4. boots the built function and calls `/api/health` and an unknown API route.
+
+  It catches a wrong entry point, a broken bundle or a broken route before Vercel does.
+  Removing the entry point, the SPA fallback or the route order each fails it
+  *(verified)*. It can't reach Turso, so S4 checks the database's behaviour on a real
+  Turso database.
+- **Scaling.** Vercel runs as many function instances as traffic needs. Turso has one
+  primary that queues writes, which is plenty for one HR user. The growth path is in §11.
 
 ## 11. Performance considerations
 
 **Targets.**
 - p95 under 300 ms for list and insights on the deployed app with 10,000 employees,
   measured on a warm instance.
-- Seeding 10,000 employees in under 2 seconds locally.
+- Seeding 10,000 employees in under 2 seconds locally. Seeding Turso over the network is
+  measured in S4.
 
-The free host's 0.1 CPU is the binding constraint. Cold start is Render's wake-up (up to
-about a minute) plus our own boot, which seeds 10,000 employees and hashes the HR password
-before it listens. The 2-second seed target is local only, so boot time on the deployed
-instance is measured too. Measured numbers, from the real code and the deployed instance,
-will be recorded in `docs/performance.md` (slices S2 and S10). If insights miss the
-target, their responses are cached in memory and the cache is cleared on every write,
-which is cheap with one process and one writer.
+Every query is a network round trip from the function to Turso. Both sit in the same AWS
+region, so a round trip takes a few milliseconds, but latency now depends more on the
+number of round trips than on SQL time. A request that needs several reads, such as a
+page and its total count, sends them as one batch. A new function instance adds its cold
+start and the startup check (§10). Measured numbers, from the real code on the deployed
+app, will be recorded in `docs/performance.md`: the skeleton's cold start in S2, the rest
+in S10. If insights miss the target, the first step is fewer round trips. Caching comes
+after that, keyed on a counter that every write increments, because function instances
+don't share memory.
 
 **At 10,000 rows:**
 - Every query is a full scan or close to one, which is still cheap at this size. No
-  precomputed aggregates are planned. Caching is only the fallback above, if deployed
-  measurements miss the target.
+  precomputed aggregates are planned.
+- Turso's free plan counts every row a query scans. An Insights page load costs roughly
+  50,000 row reads, so the monthly allowance covers about 10,000 loads (decision P3).
 - The directory uses server-side paging (the Data Grid in server mode), so the browser
   only ever holds one page of at most 100 rows.
 - The heavy routes are lazy-loaded: the directory (Data Grid) and Insights (charts). In a
@@ -470,6 +532,5 @@ which is cheap with one process and one writer.
 2. Keyset pagination for deep pages.
 3. FTS5 full-text search instead of `LIKE '%…%'`.
 4. Pre-computed aggregates, or a cache invalidated on every write.
-5. Heavy reads moved off the event loop, because better-sqlite3 is synchronous.
-6. Postgres, once more than one instance or concurrent writers are needed. The
-   repository layer keeps that migration contained.
+5. Postgres, once many concurrent writers or heavier analytics need it. The repository
+   layer keeps that migration contained.

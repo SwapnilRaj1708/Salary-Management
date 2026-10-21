@@ -30,7 +30,7 @@ How changes reach `main`. The reasoning is in [decision P4](docs/decisions.md#de
 
 - **Scope:** one slice or fix per PR. The description says what changed, why, and how it
   was tested.
-- **CI must pass:** the `verify` and `docker-smoke` jobs.
+- **CI must pass:** the `verify` and `deploy-smoke` jobs.
 - **Merge with "Create a merge commit".** Never squash or rebase, so every red/green
   commit survives and each slice shows up as one unit in the history.
 - **After merging,** delete the branch. GitHub can do this automatically.
@@ -55,13 +55,13 @@ merges**. Otherwise even that first merge could be squashed.
 | Restrict deletions | On |
 | Block force pushes | On |
 | Require a pull request before merging | On. **Required approvals: 0**, because GitHub doesn't let authors approve their own PRs, so 1 would block every merge. Allowed merge methods: **Merge** only. |
-| Require status checks to pass | On, with `verify` and `docker-smoke`. Each can only be added after it has run once; see below. Leave "Require branches to be up to date" **off**. |
+| Require status checks to pass | On, with `verify` and `deploy-smoke`. Each can only be added after it has run once; see below. Leave "Require branches to be up to date" **off**. |
 | Leave off | Restrict updates (with no bypass it would block merging), Require linear history (it forbids merge commits), Require signed commits, Require deployments |
 
 **Required checks are added later.** GitHub only offers a check once it has run in the
 repo:
 - add `verify` after the first CI pull request (S1);
-- add `docker-smoke` while the S2 pull request is open.
+- add `deploy-smoke` while the S2 pull request is open.
 
 The CI workflow must not use `paths` filters, because a skipped workflow leaves required
 checks pending forever.

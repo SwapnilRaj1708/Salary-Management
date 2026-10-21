@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Express 5 API for salary management. Node runs this TypeScript directly (type stripping).",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "node --watch src/main.ts",
     "start": "node src/main.ts",

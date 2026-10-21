@@ -7,8 +7,7 @@ the design in [architecture.md](architecture.md), and the choices in
 ## Approach
 
 1. **Walking skeleton first, deployed on day 1.** An empty app goes all the way through
-   CI, Docker, Render and Vercel before any feature work. Hosting problems surface on day 1, not
-   day 3.
+   CI and Vercel before any feature work. Hosting problems surface on day 1, not day 3.
 2. **Then vertical slices.** Each slice goes test → API → UI → deploy, and leaves the
    deployed app able to do something new.
 3. **Test-first where behaviour lives,** in domain rules and API behaviour. Those changes
@@ -23,17 +22,17 @@ Estimates are focused hours.
 |---|---|---|---|
 | **S0 Planning** ✅ | Clarifications, requirements, architecture, decisions, design system, this plan, CONTRIBUTING, CLAUDE.md, AI log. **Before this PR merges**, the owner sets merge-commit-only and creates the `main` ruleset without required checks (CONTRIBUTING.md), so even the first merge can't be squashed. | – | done |
 | **S1 Skeleton** ✅ | npm workspaces, TS 6, Biome, Vitest; `buildApp()` with `/api/health` importing `shared/`; MUI theme with motion tokens (design-system.md), app shell on TanStack Router with View Transitions and a "demo data resets" notice; test helper with the reduced-motion test theme; CI `verify` job, added to the `main` ruleset once it has run | Health returns version; app shell renders; motion: `reducedMotion` is `'system'`, search-only navigations don't animate, no duration over 375 ms | 2.5 h |
-| **S2 Deploy** | Dockerfile, `render.yaml` (auto-deploy after CI checks pass), CI Docker smoke test (build → run → curl health); `web/vercel.json` with the `/api` rewrite; `ServerWakeGate`; `docker-smoke` added to the `main` ruleset. Needs free Render and Vercel accounts connected to GitHub. **Smoke test through the Vercel URL:** deep links return `index.html`, and `/api` is never cached, including while Render sleeps. Measure the skeleton's cold start on the 0.1 CPU instance. | Docker smoke in CI; wake-gate states | 3 h |
+| **S2 Deploy** | `vercel.json` with two services: `api` on `/api/*`, `web` on every other path. The Vercel entry point; a problem+json 404 for unknown API routes; the demo notice reworded for persistent data. CI `deploy-smoke` job (boot the API, `vercel build`, boot the built function), added to the `main` ruleset. Needs the repo imported into Vercel with the "Services" preset. **Smoke test on the deployed URL:** deep links return `index.html`, `/api/health` reports the commit, an unknown API route is a JSON 404. Measure the skeleton's cold start. *Re-planned 21 Oct:* Render, Docker and the wake gate are gone (decision P3). | JSON 404; the Vercel entry default-exports the app; deploy smoke in CI | 3 h |
 | **S3 Money** | `parseMoney` / `formatMoney` in `shared/` | Decimal places 0/2/3, rejects extra decimals, zero, negatives and non-numbers, Indian digit grouping, JPY formatting | 1.5 h |
-| **S4 Data + seed** | Schema migration with every table, including `users` and `sessions` (salary history references users), migration runner, reference sync, FX view, deterministic generator, seed CLI, seed-if-empty at boot; cold start with the boot seed measured on Render (decides the listen-before-seed fallback, architecture §10) | Bad dates rejected by CHECK; view converts JPY and INR correctly; same seed gives the same org; seed invariants (10,000 rows, every row passes the contract, cached salary = latest history row) | 2.5 h |
-| **S5 Auth** | HR-user provisioning, scrypt, login/logout/me, `requireAuth`, login page and route guard. Through the Vercel URL, login's `Set-Cookie` passes through and `/auth/me` then returns 200 (P3's cookie check). | 401 without a session; cookie flags; same error for wrong email or password; logout and expiry (fixed clock) | 2 h |
-| **S6 Directory** ⭐ | Query builder, list endpoint, employee directory on MUI X Data Grid in server mode (lazy-loaded route), with filters, search, sort and paging in the URL. Query strings reach Render intact through Vercel. **First demoable deploy.** | LIKE wildcards escaped; unknown sort → 400; USD sort orders mixed currencies; stable pages; default status = active | 3 h |
-| **S7 Records** | Detail with history, create, edit, salary change, mark as left (API and UI) | Each rule in architecture §8; salary change is atomic; leavers read-only; duplicate email → 409 | 3.5 h |
+| **S4 Data + seed** | `@libsql/client`; schema migration with every table, including `users` and `sessions` (salary history references users); migration runner with `schema_migrations`; startup preparation (architecture §10); reference sync; FX view; deterministic generator; seed CLI writing in batches. Turso production and preview databases created and seeded, with their variables set in Vercel. The daily Cron call. **Checked on a real Turso database:** foreign keys enforced (if not, triggers enforce the references); `power()` present; a failing batch rolls back; two writers at once both succeed; constraint and `RAISE` errors map to the right `DomainError` over HTTP; seed time over the network. | Bad dates rejected by CHECK; view converts JPY and INR correctly; migrations run once even when started twice; same seed gives the same org; seed invariants (10,000 rows, every row passes the contract, cached salary = latest history row) | 3 h |
+| **S5 Auth** | HR-user provisioning, scrypt, login/logout/me, `requireAuth`, login page and route guard. On the deployed URL, login sets the cookie and `/auth/me` then returns 200. | 401 without a session; cookie flags; same error for wrong email or password; logout and expiry (fixed clock) | 2 h |
+| **S6 Directory** ⭐ | Query builder, list endpoint, employee directory on MUI X Data Grid in server mode (lazy-loaded route), with filters, search, sort and paging in the URL. **First demoable deploy.** | LIKE wildcards escaped; unknown sort → 400; USD sort orders mixed currencies; stable pages; default status = active | 3 h |
+| **S7 Records** | Detail with history, create, edit, salary change, mark as left (API and UI) | Each rule in architecture §8; salary change is atomic; triggers reject an out-of-order change and a change for a leaver even when the service check is skipped; leavers read-only; duplicate email → 409 | 3.5 h |
 | **S8 Insights** | `percentile` and `histogram` (pure), 4 endpoints, Insights page (MUI tables, MUI X Charts bar charts, lazy-loaded route) | Excel fixtures (`[1,2,10]` → P90 = 8.4; median of an even count); nice bucket widths with empty bins kept; exact numbers on a hand-built fixture; leavers excluded | 3 h |
 | **S9 Export** | CSV escaping and the export endpoint and button | Quoting, formula-injection prefix, numbers left raw, BOM, filters respected | 1 h |
-| **S10 Ship** | README; performance numbers measured on the deployed app (cold start including the boot seed, login time, list and insights p95); AI log; demo video; tag `v1.0.0` | – | 2.5 h |
+| **S10 Ship** | README; performance numbers measured on the deployed app (cold start, login time, list and insights p95); AI log; demo video; tag `v1.0.0` | – | 2.5 h |
 
-**Total: about 24.5 hours.** That is about three and a half focused days, with
+**Total: about 25 hours.** That is about three and a half focused days, with
 submission after day 4 at the latest.
 
 After `v1.0.0`, only if time allows: a Playwright smoke test against the live URL, a
@@ -79,38 +78,41 @@ Branches, commits, red/green pairs, pull requests and merge rules are in
 GitHub Actions, on every pull request and on `main`:
 1. **verify:** `npm ci` → `biome ci` → `npm run typecheck` → `npm test` (with coverage) →
    `npm run build`
-2. **docker-smoke:** build the image → run it → `curl /api/health`. This catches a broken
-   image, such as the type-stripping symlink failure, before Render does.
+2. **deploy-smoke:** `npm ci` → `node scripts/deploy-smoke.mjs`. It boots the API locally,
+   builds the repo with Vercel's own CLI (pinned) and boots what that build produced
+   (architecture §10). This catches a wrong entry point, a broken bundle or a broken route
+   before Vercel does. The CLI runs through `npx` at an exact version instead of being a
+   devDependency. As a devDependency its lockfile would pin its dependencies too, but
+   about 195 packages would land in every `npm ci`, including Vercel's own installs. The
+   pin is bumped deliberately.
 
-The job ids `verify` and `docker-smoke` are the names the `main` ruleset requires. The
+The job ids `verify` and `deploy-smoke` are the names the `main` ruleset requires. The
 workflow has no `paths` filters, because a skipped workflow would leave required checks
 pending.
 
 **Deploy.**
-- Render auto-deploys `main` only after its CI checks pass (`autoDeployTrigger:
-  checksPass` in `render.yaml`).
+- Vercel deploys both services from the same commit: `main` to production on every
+  merge, and a preview for every pull-request push. Previews use their own Turso database.
 - A GitHub ruleset on `main` requires a pull request with passing `verify` and
-  `docker-smoke` checks, and blocks direct pushes, force pushes and deletion. The repo
+  `deploy-smoke` checks, and blocks direct pushes, force pushes and deletion. The repo
   allows merge commits only.
-- So every API deploy (Render) came through a pull request and passed both jobs, on the
-  PR and again on `main`.
-- The UI is not gated the same way. Vercel deploys `main` about a minute after a merge,
-  before `main`'s CI finishes, and builds a preview for every PR push. Those previews call
-  the production API.
-- `/api/health` reports the deployed commit, which Render provides as
-  `RENDER_GIT_COMMIT`.
+- So every production deploy came through a pull request that passed both jobs. Vercel
+  doesn't wait for `main`'s own CI run.
+- `/api/health` reports the deployed commit, which Vercel provides as
+  `VERCEL_GIT_COMMIT_SHA`.
 
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
-| Hosting surprises (account setup, cookies behind a proxy, image boot) | Deploy the skeleton on day 1 and boot the image in CI |
-| Free host limits: sleeps after 15 min idle (cold start up to about a minute), 0.1 CPU, data reset on every boot | Cold start measured for the skeleton in S2, with the boot seed in S4, and again in S10; login and query latency in S10. Login page and README say data resets. Open the URL a minute before a demo. If insights miss the latency target, cache their responses in memory and clear the cache on every write. |
+| Hosting surprises (account setup, Vercel's build differing from local runs) | Deploy the skeleton on day 1. CI runs Vercel's own build and boots its output on every pull request. |
+| Free-tier limits: Turso's monthly row reads, a possible archive of idle free databases, a network round trip per query | Reads batched per request; quota headroom estimated in decision P3; a daily Cron query keeps the database active. Cold start measured in S2, latency and quota use in S10. If insights miss the target: fewer round trips first, then a cache keyed on a write counter. |
+| Turso's terms change (Supabase is buying it) | The data is plain SQLite behind repositories, so it can move to another host or to Postgres |
 | Money bugs (float maths, JPY decimals, FX direction) | Integer minor units, string parsing, one conversion path, tests for 0, 2 and 3 decimal places |
 | A very new toolchain (Vite 8, Vitest 5, MUI 9, MUI X 9, TanStack Router) | Exact version pins and a lockfile. The skeleton exercises every tool on day 1. `tsx` is the fallback for type stripping. Node is pinned to 22.22.3, because jsdom 30 needs at least 22.22.2. `skipLibCheck` stays on in `web/`, because MUI X's own type files fail strict checks. |
-| Vercel's proxy mishandles cookies or caching | Smoke tests through the Vercel URL: routing and caching in S2, the cookie in S5, query strings in S6. Caching is opted out on `/api`. If a test fails, ship the Render URL alone (the same app, no code change). |
-| UI deployed ahead of the API | API changes stay backward-compatible. A numeric `API_VERSION` in `shared/` is bumped only when the UI needs a newer API. In production builds, the UI compares it with `/api/health` and says the server is updating if it is behind. Commit SHAs are not compared, because docs-only merges redeploy Vercel but not Render. |
+| Open tabs older than the API after a deploy | API changes stay backward-compatible, and response contracts aren't strict. UI and API deploy together, so the UI is never ahead of the API. |
+| Pull-request code migrating production data | Previews use a separate Turso database through Vercel's Preview environment variables. Migrations are additive (expand, then contract). |
 | AI-written code the candidate can't explain | Tests written first and reviewed as the spec; small diffs; the decision log; CLAUDE.md rules |
 | Scope creep | The "deliberately out" list, plus the cut order above |
-| Reviewers see different data | Seed is deterministic and runs on every boot, so every reviewer starts from the same data |
+| Reviewers see each other's changes | The seed is deterministic, the demo notice says changes are shared, and `npm run seed -- --reset` restores the starting data |
 | No deadline given (the recruiter's reply didn't set one) | Demoable from slice S6. Submission aimed at the end of day 3 of the build. |

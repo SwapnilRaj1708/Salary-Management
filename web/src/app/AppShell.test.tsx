@@ -11,10 +11,10 @@ describe('App shell', () => {
     expect(router.state.location.pathname).toBe('/employees');
   });
 
-  it('tells the user that demo data resets when the server sleeps', async () => {
+  it('tells the user that changes in the shared demo are seen by everyone', async () => {
     renderApp('/employees');
 
-    expect(await screen.findByText(/data resets to the seeded 10,000 employees/)).toBeVisible();
+    expect(await screen.findByText(/Changes are saved and seen by everyone/)).toBeVisible();
   });
 
   it('puts the page content in its own view-transition group, so the app bar stays still', async () => {

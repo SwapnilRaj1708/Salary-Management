@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # Cancel superseded PR runs only; a cancelled run on main would block Render's deploy.
+  # Cancel superseded PR runs only; every push to main keeps its own record.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -41,3 +41,21 @@ jobs:
 
       - name: Build the web app
         run: npm run build
+
+  # Builds the repo with Vercel's own CLI and boots what it produced (scripts/deploy-smoke.mjs).
+  deploy-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Boot, build with Vercel and smoke-test the output
+        run: node scripts/deploy-smoke.mjs

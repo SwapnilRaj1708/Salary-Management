@@ -11,7 +11,7 @@ for motion).
 - **One library.** MUI everywhere gives one look, one theme and one way to style things.
 - **Numbers are sacred.** Money is always rendered with `formatMoney`, in tabular figures,
   and is never animated.
-- **Every state is designed:** loading, empty, error, saving, and "waking the server".
+- **Every state is designed:** loading, empty, error and saving.
 - **Accessible by default:** keyboard navigation, AA contrast, visible focus, and respect
   for the OS "reduce motion" setting.
 
@@ -95,7 +95,6 @@ The theme also sets `motion: { reducedMotion: 'system' }`.
 | Dialogs and toasts | MUI defaults: dialogs fade, snackbars grow |
 | New salary-history row | One background-colour fade, from a success tint to transparent over `highlightFadeMs` (1000 ms, exported from `theme.ts`). Colour only, no movement, so it is exempt from the 375 ms ceiling. |
 | Charts | X Charts' 300 ms entry animation |
-| Waking the server | `ServerWakeGate`: silent for the first 1.5 s. Then an `Alert` with an indeterminate `LinearProgress`, an elapsed-seconds counter and the text "Waking the demo server. Free hosting sleeps after 15 min idle; about a minute. Demo data resets on wake." |
 
 ### Never animated
 
@@ -113,7 +112,6 @@ The theme also sets `motion: { reducedMotion: 'system' }`.
     - the `Box` wrapping the grid sets `aria-busy={isFetching}`, because the Data Grid
       sets none itself *(verified)*;
     - the grid's loading overlay renders a `role="progressbar"`.
-  - The wake banner states its message in text, with `role="status"`.
 - **Tests.**
   - Tests render with `createAppTheme({ reducedMotion: 'always' })`. This theme also sets
     `MuiDatePicker.defaultProps.reduceAnimations: true`, because the picker's calendar
@@ -137,7 +135,6 @@ The theme also sets `motion: { reducedMotion: 'system' }`.
 | Empty | The grid's no-rows overlay says "No employees match these filters" and offers a **Clear filters** button. Insights show "No active employees" per section. |
 | Error | Field errors under their fields, mapped from problem+json `errors[]`. Other errors show an `Alert` whose wording comes from the error `code`, never a raw message. |
 | Signed out | A 401 redirects to `/login`, then back to the page the user came from |
-| Server waking | `ServerWakeGate` (§4). Sign-in is disabled until the server answers. After 180 s it offers **Retry**. |
 
 ## 6. Size and speed
 

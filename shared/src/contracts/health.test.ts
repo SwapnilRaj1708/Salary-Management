@@ -12,8 +12,8 @@ describe('HealthResponse', () => {
     });
   });
 
-  it("rejects anything that isn't a health response, such as the host's HTML loading page", () => {
-    expect(HealthResponse.safeParse('<!doctype html><title>Waking up</title>').success).toBe(false);
+  it("rejects anything that isn't a health response, such as an HTML page", () => {
+    expect(HealthResponse.safeParse('<!doctype html><title>Salary</title>').success).toBe(false);
     expect(HealthResponse.safeParse({ status: 'starting' }).success).toBe(false);
   });
 });

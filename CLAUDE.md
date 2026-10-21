@@ -10,7 +10,9 @@ task conflicts with them, stop and ask.
   RED `test:` commit, where the only allowed failure is the new test.
 - `npm test -- <path>` runs one file; `npm test -- --project api` runs one workspace.
 - `npm run dev`: API + web with reload.
-- `npm run seed -- --reset`: rebuild the local database with 10,000 employees.
+- `npm run seed -- --reset`: rebuild the database in `TURSO_DATABASE_URL` (the local file
+  by default) with 10,000 employees.
+- `node scripts/deploy-smoke.mjs`: what CI's `deploy-smoke` job runs (Vercel build + boot).
 
 ## Workflow
 
@@ -59,7 +61,18 @@ task conflicts with them, stop and ask.
   are `.strict()`. Response contracts are not, so fields a newer API adds can't break an
   older web app. SQL lives only in repositories and is always parameterised. Sort keys come
   from a whitelist.
-- **Never `await` inside `db.transaction()`.**
+- **Database:** libSQL through `@libsql/client` (Turso in production, a file locally,
+  `:memory:` in tests).
+  - A use-case writes with one `db.batch([...], 'write')`. No interactive transactions
+    (D17). A rule that depends on stored data is checked by the service, then enforced
+    again by the database inside the batch with a CHECK or a trigger that raises. A
+    guarded `WHERE` doesn't fail the batch, so it doesn't count.
+  - Map database errors on `code === 'SQLITE_CONSTRAINT'` plus the constraint or `RAISE`
+    name in the message. Over HTTP (Turso), `extendedCode` is empty and the message
+    differs.
+  - The client binds JS numbers as REAL, so never do integer maths on SQL parameters.
+  - Turso's `PRAGMA user_version` is read-only; migrations are tracked in
+    `schema_migrations`.
 - **Errors:** throw a typed `DomainError`. The error handler maps it to RFC 9457
   problem+json with a `code`.
 - **Vocabulary:** status is `active | left` with `left_on`; there is no delete. Salary

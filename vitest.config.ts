@@ -6,8 +6,9 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['shared/src/**', 'api/src/**', 'web/src/**'],
-      // Entry points only wire things together. The docker-smoke CI job (slice S2) will
-      // boot them; unit tests don't.
+      // Entry points only wire things together. The deploy-smoke CI job boots
+      // api/src/main.ts, and the web build compiles web/src/main.tsx.
+      // (api/src/vercel.ts is small enough to have its own test.)
       exclude: ['**/*.test.{ts,tsx}', '**/test/**', 'api/src/main.ts', 'web/src/main.tsx'],
     },
   },

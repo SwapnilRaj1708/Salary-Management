@@ -136,3 +136,72 @@ What the agent did:
    - the need to set up the ruleset before the first merge.
 7. **Moved the planning work** to `docs/planning` and opened the first pull request into
    `main` from it.
+
+## Prompt 6, 20 Oct 2026: build slice S1
+
+> *Swapnil:* "Made the `main` ruleset. Continue."
+
+What the agent did:
+- **Built the walking skeleton (S1)** on `feat/s1-walking-skeleton`, in red/green pairs
+  where behaviour was involved.
+- **Ran a review round** with critics for correctness, test quality and the plan's rules.
+  They found a swallowed port-bind error, a strict response contract, an animated first
+  render and tests that mutations didn't break (log rows 23–28). All were fixed before
+  the pull request merged.
+
+## Prompt 7, 21 Oct 2026: Vercel with multiple services
+
+> *Swapnil:* "Configure this repository to deploy on Vercel as a project with multiple
+> services … Add bindings for internal services … Update the application code to match
+> the routing and bindings … Confirm the details with me before you finish." Then: "Also
+> I already have a Render as well as a Vercel account."
+
+What the agent did:
+1. **Checked the configuration with Vercel's own tools.** vercel.com was blocked from the
+   sandbox, so it ran the Vercel CLI's schema validator and `vercel build` locally, and
+   booted the function the build produced.
+2. **Fixed what the build showed:** Vercel's detector picked the wrong entry file and Node
+   24 (log row 29). It added `api/src/vercel.ts` as an explicit entry, and pinned Node 22.
+3. **Made unknown API routes a JSON 404** (red/green), because routing into a service is
+   final and never falls back to the web app.
+4. **Proposed no bindings,** since the SPA is static and calls the API on its own origin.
+   It asked the candidate to confirm the service names, the public paths, the bindings,
+   whether Render was still needed, and where data should live.
+
+## Prompt 8, 21 Oct 2026: the candidate's answers
+
+> *Swapnil:* "The service names can be API and web … for web, if the root route works
+> (just a single slash), that would be fine … Bindings: for now, there are no
+> SSR-rendered pages in mind … If you are fine with Vercel having web and API, then …
+> we will not move to Render … for the data part, we can go with option A, which is
+> Vercel plus Turso."
+
+What the agent did:
+1. **Tried the web app without a `web` service,** using top-level build settings. Vercel's
+   build rejects that next to `services` (log row 30). So `web` stays a named service,
+   still served on `/`.
+2. **Researched Turso and probed its client.** A research agent read Turso's docs source on
+   GitHub, because the sites were blocked. The agent probed `@libsql/client` 0.18.0.
+   - `PRAGMA user_version` is read-only on Turso, so migrations use a table (D2).
+   - Concurrent interactive transactions fail locally, so writes became atomic batches
+     with rules enforced by the database (D17).
+   - JS numbers bind as REAL (log rows 31–32).
+3. **Re-planned the docs:**
+   - decision P3 and the new D17;
+   - architecture §1–3, §10 and §11;
+   - plan slices S2 and S4;
+   - the design system, which drops the wake screen;
+   - README deploy steps and CLAUDE.md rules.
+4. **Added the `deploy-smoke` CI job.** It boots the API, runs Vercel's build and boots its
+   output. It was tested by breaking the configuration on purpose; the first version hung
+   instead of failing (log row 33).
+5. **Ran a review round** on the branch, from three angles: docs consistency, deploy
+   mechanics, and the libSQL design. A skeptic agent then tried to refute each angle's
+   findings. 12 of 17 held up. The main ones (log rows 34–38):
+   - an empty commit variable crashed the API;
+   - a bare `/api` fell through to the web app;
+   - a guarded `WHERE` doesn't fail a batch;
+   - error codes differ over Turso's HTTP protocol;
+   - the deploy gate claim was too strong.
+
+   All were fixed before the pull request was opened.
