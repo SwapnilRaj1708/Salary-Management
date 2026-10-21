@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Body of `GET /api/health`. The web app also parses it while waiting for the server to wake.
+ * Body of `GET /api/health`.
  *
  * Response contracts are not `.strict()`: an open tab can be older than the API, so fields a
  * newer API adds must not break it (zod strips them). Request schemas stay `.strict()`.
