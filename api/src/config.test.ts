@@ -13,6 +13,11 @@ describe('loadConfig', () => {
     });
   });
 
+  it('falls back to version "dev" when the commit variable is set but empty', () => {
+    // `vercel env pull` writes VERCEL_GIT_COMMIT_SHA="" for local development.
+    expect(loadConfig({ VERCEL_GIT_COMMIT_SHA: '' }).version).toBe('dev');
+  });
+
   it('rejects a port that is not a valid number', () => {
     expect(() => loadConfig({ PORT: 'eighty' })).toThrow();
   });
