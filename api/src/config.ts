@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { DbConfig } from './db/client.ts';
 
 const Env = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
@@ -10,6 +11,7 @@ const Env = z.object({
 export type Config = {
   port: number;
   version: string;
+  database: DbConfig;
 };
 
 /** Reads and validates the environment once at boot. Invalid config stops the process. */
@@ -18,5 +20,6 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   return {
     port: parsed.PORT,
     version: parsed.VERCEL_GIT_COMMIT_SHA || 'dev',
+    database: { url: '', authToken: undefined },
   };
 }
