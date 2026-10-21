@@ -2,8 +2,9 @@ import { z } from 'zod';
 
 const Env = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
-  // Vercel sets this to the deployed commit; locally there is none.
-  VERCEL_GIT_COMMIT_SHA: z.string().min(1).optional(),
+  // Vercel sets this to the deployed commit. Locally it is unset, or empty after
+  // `vercel env pull`.
+  VERCEL_GIT_COMMIT_SHA: z.string().optional(),
 });
 
 export type Config = {
@@ -16,6 +17,6 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   const parsed = Env.parse(env);
   return {
     port: parsed.PORT,
-    version: parsed.VERCEL_GIT_COMMIT_SHA ?? 'dev',
+    version: parsed.VERCEL_GIT_COMMIT_SHA || 'dev',
   };
 }
