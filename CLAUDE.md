@@ -12,6 +12,8 @@ task conflicts with them, stop and ask.
 - `npm run dev`: API + web with reload.
 - `npm run seed -- --reset`: rebuild the database in `TURSO_DATABASE_URL` (the local file
   by default) with 10,000 employees.
+- `npm run db:check`: checks the database in `TURSO_DATABASE_URL` for the behaviour the
+  design relies on (foreign keys, batch rollback, error shape, concurrent writers).
 - `node scripts/deploy-smoke.mjs`: what CI's `deploy-smoke` job runs (Vercel build + boot).
 
 ## Workflow

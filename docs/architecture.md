@@ -62,7 +62,7 @@ api/      @salary/api     Express API, seed script; runs .ts directly on Node 22
     app.ts                buildApp(deps): the Express app, no listen(); used by tests
     config.ts             env vars validated with zod
     http/                 error handler, requireAuth
-    db/                   client, migration runner, migrations/*.sql, reference sync
+    db/                   client, migration runner, migrations/*.ts, reference sync, db:check
     domain/               pure functions: salary-change rules, stats, csv, clock
     auth/ employees/ insights/ export/
                           feature folders: routes.ts, service.ts, repository.ts (+ tests)
@@ -197,15 +197,21 @@ CREATE VIEW employee_salaries AS
 SELECT e.*,
        co.currency_code,
        cu.minor_unit,
-       e.current_salary_minor / (power(10, cu.minor_unit) * cu.units_per_usd) AS salary_usd
+       e.current_salary_minor
+         / ((CASE cu.minor_unit WHEN 0 THEN 1.0 WHEN 2 THEN 100.0 ELSE 1000.0 END)
+            * cu.units_per_usd) AS salary_usd
 FROM employees e
 JOIN countries  co ON co.code = e.country_code
 JOIN currencies cu ON cu.code = co.currency_code;
 ```
 
-`power()` comes from SQLite's math functions. libSQL's local build has it *(verified)*, and
-Turso loads a math extension; S4 confirms it on a real Turso database. If it is missing,
-`currencies` stores `10^minor_unit` as a column instead.
+The view divides by a `CASE` on the minor unit (0, 2 or 3, enforced by a CHECK) rather
+than `power(10, minor_unit)`, so it needs no math extension on Turso. *Changed in S4.*
+
+Every CHECK is written to be NULL-proof, because a CHECK that evaluates to NULL passes:
+`IS date(col)` for dates, and `coalesce(length(trim(note)), 0) > 0` for the note an
+`other` reason requires. A test caught the plain `length(trim(note)) > 0` letting a
+missing note through.
 
 Indexes are added when a measured query needs them, and each is recorded in the
 performance notes. The starting set covers foreign-key lookups, `(country_code, status)`
@@ -459,35 +465,42 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
      variables, `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
   2. Apply pending migrations (below).
   3. Sync reference data from `shared/`, only when it changed.
-  4. Create the HR user if there is none.
+  4. Create the HR user if there is none (from S5).
 
   Only a successful preparation is kept. If it fails (Turso unreachable for a moment, say),
   the promise is dropped and the next request tries again, instead of the warm instance
   answering 500 until Vercel recycles it. Locally, `main.ts` runs the same steps before
   it listens.
-- **Migrations** are numbered `.sql` files.
+- **Migrations** are numbered TypeScript modules in `api/src/db/migrations/`, each
+  exporting its statements as an array. Vercel's bundler only ships what the code imports,
+  so `.sql` files read at runtime could go missing, and an array needs no splitting
+  (trigger bodies contain semicolons). *Changed in S4 from `.sql` files.*
   - `schema_migrations(version INTEGER PRIMARY KEY)` is created with `IF NOT EXISTS`
     before the runner reads it.
-  - A file becomes batch statements by splitting on a marker line (`-- statement`), never
-    on `;`, because trigger bodies contain semicolons.
   - Each migration runs as one write batch whose first statement inserts its version row.
     Two instances racing to apply the same migration can't both succeed: the loser fails
     on the key at once, its whole batch rolls back, and it re-reads the list.
-  - A runner test applies a migration containing a trigger and checks that every object
-    exists.
+  - Tests cover a repeat run, two runs at once, and a migration that fails part-way.
 - **Migrations stay backward-compatible:** expand first, contract in a later deploy.
   Requests to the previous deployment can still arrive after a new one has migrated.
-- **Seeding is a CLI step, not part of startup.** `npm run seed -- --reset` runs with a
-  database's URL and token in the environment: once per database, and again whenever the
-  demo should be reset. Writing 10,000 employees over the network doesn't belong in a
+- **Seeding is a command, not part of startup.** `npm run seed -- --reset` writes the
+  10,000 employees in batches (500 rows per INSERT, 10 statements per request) into the
+  database in `TURSO_DATABASE_URL`. Writing them over the network doesn't belong in a
   request.
+  - For Turso, the manual **Database** workflow in GitHub Actions runs the seed, or
+    `npm run db:check`, with the URL and token from repository secrets. Nobody needs the
+    tokens on their own machine.
+  - Without `--reset`, a database that already has employees is refused.
+  - Each batch is atomic, but the whole seed is not, because it is too big for one
+    request. A run that fails part-way is simply run again.
   - The seed is deterministic, so every reviewer starts from the same data.
   - Changes persist and every reviewer sees them, as the demo notice says.
   - There is deliberately no env flag for resetting, because a forgotten flag would wipe
     the data on every cold start.
-- **Keeping the free database awake.** A daily Vercel Cron call to `GET /api/health`,
-  which from S4 runs one query, in case Turso archives free databases after 10 days
-  without traffic (decision P3). Health is public, so the call needs no secret.
+- **Keeping the free database awake.** `vercel.json` schedules a daily Cron call to
+  `GET /api/health` (06:17 UTC), which runs `SELECT 1`, in case Turso archives free
+  databases after 10 days without traffic (decision P3). Health is public, so the call
+  needs no secret.
 - **Deploys.** Vercel deploys both services from the same commit: `main` to production on
   every merge, and a preview for every pull-request push. `main` only changes through
   pull requests whose `verify` and `deploy-smoke` checks passed (decision P4). Vercel
@@ -519,8 +532,9 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
 **Targets.**
 - p95 under 300 ms for list and insights on the deployed app with 10,000 employees,
   measured on a warm instance.
-- Seeding 10,000 employees in under 2 seconds locally. Seeding Turso over the network is
-  measured in S4.
+- Seeding 10,000 employees in under 2 seconds locally: 0.8 s for 10,000 employees and
+  46,408 salary changes into a local file (S4). The time to seed Turso over the network is
+  printed by the Database workflow.
 
 Every query is a network round trip from the function to Turso. Both sit in the same AWS
 region, so a round trip takes a few milliseconds, but latency now depends more on the
