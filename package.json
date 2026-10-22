@@ -21,6 +21,7 @@
     "verify": "npm run lint && npm run typecheck && npm test",
     "start": "npm run start -w @salary/api",
     "seed": "npm run seed -w @salary/api --",
+    "db:check": "npm run db:check -w @salary/api",
     "build": "npm run build -w @salary/web"
   },
   "devDependencies": {
