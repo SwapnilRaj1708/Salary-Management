@@ -1,17 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "services": {
-    "api": {
-      "root": "api",
-      "framework": "express",
-      "entrypoint": "src/vercel.ts"
-    },
+    "api": { "root": "api", "framework": "express", "entrypoint": "src/vercel.ts" },
     "web": {
       "root": "web",
       "framework": "vite",
       "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
     }
   },
+  "crons": [{ "path": "/api/health", "schedule": "17 6 * * *" }],
   "rewrites": [
     { "source": "/api", "destination": { "service": "api" } },
     { "source": "/api/(.*)", "destination": { "service": "api" } },

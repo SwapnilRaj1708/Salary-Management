@@ -1,0 +1,57 @@
+name: Database
+
+# Run by hand from the Actions tab: checks a Turso database, or seeds it. The URLs and
+# tokens are repository secrets, so they never appear in code, logs or chat.
+on:
+  workflow_dispatch:
+    inputs:
+      database:
+        description: Which Turso database
+        type: choice
+        options: [preview, production]
+        required: true
+      action:
+        description: "check: run npm run db:check. seed: replace all employees with the seed."
+        type: choice
+        options: [check, seed]
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-${{ inputs.database }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TURSO_DATABASE_URL: ${{ inputs.database == 'production' && secrets.TURSO_PRODUCTION_DATABASE_URL || secrets.TURSO_PREVIEW_DATABASE_URL }}
+      TURSO_AUTH_TOKEN: ${{ inputs.database == 'production' && secrets.TURSO_PRODUCTION_AUTH_TOKEN || secrets.TURSO_PREVIEW_AUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Refuse to run without the database secrets
+        run: |
+          if [ -z "$TURSO_DATABASE_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
+            echo "Set the TURSO_${{ inputs.database == 'production' && 'PRODUCTION' || 'PREVIEW' }}_DATABASE_URL and _AUTH_TOKEN repository secrets first."
+            exit 1
+          fi
+
+      - name: Check the database
+        if: inputs.action == 'check'
+        run: npm run db:check
+
+      - name: Seed the database (replaces all employees)
+        if: inputs.action == 'seed'
+        run: npm run seed -- --reset
