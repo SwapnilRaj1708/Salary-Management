@@ -10,9 +10,12 @@
   "scripts": {
     "dev": "node --watch src/main.ts",
     "start": "node src/main.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "seed": "node src/seed/cli.ts",
+    "db:check": "node src/db/check-cli.ts"
   },
   "dependencies": {
+    "@libsql/client": "0.18.0",
     "@salary/shared": "0.0.0",
     "express": "5.3.0",
     "zod": "4.6.7"

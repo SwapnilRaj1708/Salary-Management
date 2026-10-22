@@ -1,10 +1,10 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { buildApp } from '../app.ts';
+import { testApp } from '../test/app.ts';
 
 describe('unknown API routes', () => {
   it('answer with a JSON 404 problem, not an HTML error page', async () => {
-    const app = buildApp({ config: { version: 'test' } });
+    const { app } = testApp();
 
     const res = await request(app).get('/api/nope');
 

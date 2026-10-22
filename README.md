@@ -5,8 +5,8 @@ and to answer "how do we pay people?". This is a take-home assessment for Incuby
 
 > **Live:** https://salary-management-topaz.vercel.app
 >
-> **Status:** slices S1 (walking skeleton) and S2 (deployment) are done: the API health
-> endpoint, the app shell, CI, and the Vercel deployment. The next slices are in
+> **Status:** slices S1–S4 are done: the walking skeleton, the Vercel deployment, money
+> handling, and the database with its 10,000-employee seed. The next slices are in
 > [docs/plan.md](docs/plan.md). The demo login and video will be added here as they exist.
 
 ## Run it locally
@@ -63,8 +63,11 @@ The owner does this once. The reasons are in [architecture §10](docs/architectu
 3. **Vercel → Settings → Environment Variables:** set `TURSO_DATABASE_URL` and
    `TURSO_AUTH_TOKEN` for Production (production database) and for Preview (preview
    database). From slice S5, also set `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
-4. **Seed each database once** (from slice S4): run `npm run seed -- --reset` with that
-   database's URL and token in the environment.
+4. **GitHub → Settings → Secrets and variables → Actions:** add four repository secrets,
+   `TURSO_PREVIEW_DATABASE_URL`, `TURSO_PREVIEW_AUTH_TOKEN`,
+   `TURSO_PRODUCTION_DATABASE_URL` and `TURSO_PRODUCTION_AUTH_TOKEN`.
+5. **Actions → Database → Run workflow:** run `check`, then `seed`, once for each database.
+   `seed` replaces all employees with the 10,000 seeded ones, so it also resets the demo.
 
 Every change goes through its own branch and a pull request into `main`; nobody pushes to
 `main` directly. See [CONTRIBUTING.md](CONTRIBUTING.md).

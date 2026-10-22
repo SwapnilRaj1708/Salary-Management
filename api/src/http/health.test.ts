@@ -1,11 +1,11 @@
 import { API_VERSION, HealthResponse } from '@salary/shared';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
-import { buildApp } from '../app.ts';
+import { describe, expect, it, vi } from 'vitest';
+import { testApp } from '../test/app.ts';
 
 describe('GET /api/health', () => {
   it('reports ok with the deployed version and the API contract version', async () => {
-    const app = buildApp({ config: { version: 'abc1234' } });
+    const { app } = testApp('abc1234');
 
     const res = await request(app).get('/api/health');
 
@@ -15,10 +15,19 @@ describe('GET /api/health', () => {
   });
 
   it('tells every cache not to store the response', async () => {
-    const app = buildApp({ config: { version: 'abc1234' } });
+    const { app } = testApp('abc1234');
 
     const res = await request(app).get('/api/health');
 
     expect(res.headers['cache-control']).toBe('no-store');
+  });
+
+  it('runs a query, so the daily keep-alive call reaches the database', async () => {
+    const { app, db } = testApp();
+    const execute = vi.spyOn(db, 'execute');
+
+    await request(app).get('/api/health');
+
+    expect(execute).toHaveBeenCalledWith('SELECT 1');
   });
 });

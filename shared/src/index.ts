@@ -6,5 +6,14 @@ export {
   type ParseMoneyResult,
   parseMoney,
 } from './money.ts';
-export { CURRENCIES, CURRENCY_CODES, type CurrencyCode, type MinorUnit } from './reference.ts';
+export {
+  COUNTRIES,
+  COUNTRY_CODES,
+  type CountryCode,
+  CURRENCIES,
+  CURRENCY_CODES,
+  type CurrencyCode,
+  FX_AS_OF,
+  type MinorUnit,
+} from './reference.ts';
 export { API_VERSION } from './version.ts';
