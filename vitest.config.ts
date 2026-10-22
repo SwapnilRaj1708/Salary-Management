@@ -9,7 +9,13 @@ export default defineConfig({
       // Entry points only wire things together. The deploy-smoke CI job boots
       // api/src/main.ts, and the web build compiles web/src/main.tsx.
       // (api/src/vercel.ts is small enough to have its own test.)
-      exclude: ['**/*.test.{ts,tsx}', '**/test/**', 'api/src/main.ts', 'web/src/main.tsx'],
+      exclude: [
+        '**/*.test.{ts,tsx}',
+        '**/test/**',
+        'api/src/main.ts',
+        'api/src/seed/cli.ts',
+        'web/src/main.tsx',
+      ],
     },
   },
 });

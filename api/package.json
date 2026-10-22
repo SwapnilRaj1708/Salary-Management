@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "node --watch src/main.ts",
     "start": "node src/main.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "seed": "node src/seed/cli.ts"
   },
   "dependencies": {
     "@libsql/client": "0.18.0",
