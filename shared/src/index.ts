@@ -1,4 +1,19 @@
 export { AuthUser, LoginRequest, MeResponse } from './contracts/auth.ts';
+export {
+  CountryCodeSchema,
+  CurrencyCodeSchema,
+  EMPLOYEE_SORT_FIELDS,
+  EmployeeFilters,
+  EmployeeListItem,
+  EmployeeListQuery,
+  EmployeeListResponse,
+  EmployeeSort,
+  type EmployeeSortField,
+  EmployeeStatusFilter,
+  FxInfo,
+  MoneySchema,
+  ReferenceDataResponse,
+} from './contracts/employees.ts';
 export { HealthResponse } from './contracts/health.ts';
 export {
   formatMoney,
