@@ -24,17 +24,25 @@ export function AppShell() {
   const signOut = () =>
     logout.mutate(undefined, { onSettled: () => navigate({ to: '/login', replace: true }) });
 
+  // A full-height column: the app bar stays at the top while the page scrolls, and a page
+  // can fill the rest of the viewport (the directory's grid does).
   return (
-    <>
+    <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <ViewTransitionStyles />
       <AppBar
-        position="static"
+        position="sticky"
         color="inherit"
         elevation={0}
         sx={{ borderBottom: 1, borderColor: 'divider' }}
       >
-        <Toolbar sx={{ gap: 3 }}>
-          <Typography variant="h6" component="span">
+        <Toolbar sx={{ gap: { xs: 1, sm: 3 } }}>
+          {/* On a phone the title and email give way, so navigation and Sign out still fit. */}
+          <Typography
+            variant="h6"
+            component="span"
+            noWrap
+            sx={{ display: { xs: 'none', sm: 'block' } }}
+          >
             Salary Management
           </Typography>
           <Box component="nav" aria-label="Main">
@@ -50,7 +58,11 @@ export function AppShell() {
           <Box sx={{ flexGrow: 1 }} />
           {user && (
             <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ display: { xs: 'none', md: 'block' } }}
+              >
                 {user.email}
               </Typography>
               <Button color="inherit" onClick={signOut} loading={logout.isPending}>
@@ -63,7 +75,13 @@ export function AppShell() {
       <Container
         component="main"
         maxWidth="xl"
-        sx={{ py: 3, viewTransitionName: PAGE_CONTENT_TRANSITION }}
+        sx={{
+          py: 3,
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          viewTransitionName: PAGE_CONTENT_TRANSITION,
+        }}
       >
         <Alert severity="info" sx={{ mb: 3 }}>
           Demo environment with 10,000 generated employees. Changes are saved and seen by everyone
@@ -71,6 +89,6 @@ export function AppShell() {
         </Alert>
         <Outlet />
       </Container>
-    </>
+    </Box>
   );
 }

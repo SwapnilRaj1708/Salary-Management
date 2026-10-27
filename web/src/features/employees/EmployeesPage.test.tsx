@@ -109,4 +109,15 @@ describe('employee directory', () => {
     const wrapper = grid.closest('[aria-busy]')!;
     await waitFor(() => expect(wrapper).toHaveAttribute('aria-busy', 'false'));
   });
+
+  it('lets the grid take the height left in the window, down to a minimum', async () => {
+    renderApp('/employees');
+
+    const grid = await screen.findByRole('grid');
+    // biome-ignore lint/style/noNonNullAssertion: the grid always sits in the busy wrapper
+    const wrapper = getComputedStyle(grid.closest('[aria-busy]')!);
+    expect(wrapper.flexGrow).toBe('1');
+    expect(wrapper.flexBasis).toBe('0px');
+    expect(wrapper.minHeight).toBe('400px');
+  });
 });

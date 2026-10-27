@@ -31,10 +31,10 @@ for motion).
 
 | Screen | Element | Component |
 |---|---|---|
-| Shell | App bar and navigation | `AppBar`, `Toolbar`, `Button` wrapped with TanStack Router's `createLink` |
+| Shell | App bar and navigation | `AppBar position="sticky"`, so it stays at the top while a page scrolls; `Toolbar`; `Button` wrapped with TanStack Router's `createLink`. On a phone the title and email are hidden, so navigation and Sign out still fit. |
 | Shell | Demo notice; background activity | `Alert severity="info"`; `LinearProgress` |
 | Login | Form | `Card`, `Stack`, `TextField`, `Button loading` |
-| Directory | Grid | `DataGrid` in server mode (`paginationMode`/`sortingMode="server"`, `rowCount` from the API, page sizes 25/50/100, `disableColumnFilter`) |
+| Directory | Grid | `DataGrid` in server mode (`paginationMode`/`sortingMode="server"`, `rowCount` from the API, page sizes 25/50/100, `disableColumnFilter`). The shell is a full-height column, and the grid takes the height left in the window (at least 400 px), so on a desktop the page itself never scrolls. Standard density, 52 px rows: the name and the employee code each get a line. |
 | Directory | Search; filters | `TextField` with a search icon; `TextField select` for short lists; `Autocomplete` for job titles |
 | Directory | Status; export | `Chip`; `Button component="a"` pointing at the export URL |
 | Detail | Header; fields; salary history | `Breadcrumbs`, `Chip`, `Card` + `Grid`; `Table size="small"` |

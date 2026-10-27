@@ -25,6 +25,15 @@ describe('App shell', () => {
     expect(getComputedStyle(main).getPropertyValue('view-transition-name')).toBe('main-content');
   });
 
+  it('keeps the app bar at the top while the page scrolls', async () => {
+    renderApp('/employees');
+
+    const appBar = await screen.findByRole('banner');
+
+    expect(getComputedStyle(appBar).position).toBe('sticky');
+    expect(getComputedStyle(appBar).top).toBe('0px');
+  });
+
   it('marks the current page in the main navigation', async () => {
     renderApp('/employees');
     const nav = await screen.findByRole('navigation', { name: 'Main' });

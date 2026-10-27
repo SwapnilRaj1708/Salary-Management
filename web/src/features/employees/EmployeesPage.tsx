@@ -34,6 +34,9 @@ const route = getRouteApi('/signed-in/employees');
 /** Waits this long after typing stops before searching (docs/design-system.md §4). */
 export const SEARCH_DEBOUNCE_MS = 300;
 
+/** Enough for the header, about five rows and the footer on a short screen. */
+const GRID_MIN_HEIGHT = 400;
+
 /** Grid column field → API sort key. Columns not listed here can't be sorted. */
 const SORT_FIELDS: Partial<Record<string, EmployeeSortField>> = {
   fullName: 'name',
@@ -71,7 +74,7 @@ const COLUMNS: GridColDef<EmployeeListItem>[] = [
   },
   { field: 'department', headerName: 'Department', flex: 1, minWidth: 140 },
   { field: 'jobTitle', headerName: 'Job title', flex: 1.3, minWidth: 180 },
-  { field: 'hireDate', headerName: 'Hired', width: 110 },
+  { field: 'hireDate', headerName: 'Hired', width: 120 },
   {
     field: 'status',
     headerName: 'Status',
@@ -147,8 +150,11 @@ export function EmployeesPage() {
   );
 
   return (
-    <Stack spacing={2}>
-      <Stack direction="row" sx={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
+    <Stack spacing={2} sx={{ flex: 1 }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        sx={{ alignItems: { sm: 'baseline' }, justifyContent: 'space-between' }}
+      >
         <Typography variant="h4" component="h1">
           Employees
         </Typography>
@@ -171,7 +177,11 @@ export function EmployeesPage() {
         <Alert severity="error">The employee list could not be loaded. Please try again.</Alert>
       )}
 
-      <Box aria-busy={employees.isFetching} sx={{ height: 640, width: '100%' }}>
+      {/* The grid takes the height left in the viewport; below the minimum the page scrolls. */}
+      <Box
+        aria-busy={employees.isFetching}
+        sx={{ flex: '1 1 0', minHeight: GRID_MIN_HEIGHT, width: '100%' }}
+      >
         <DataGrid
           rows={employees.data?.items ?? []}
           columns={COLUMNS}
@@ -181,8 +191,7 @@ export function EmployeesPage() {
           sortingMode="server"
           disableColumnFilter
           disableVirtualization // a page is at most 100 rows, and every row is then in the DOM
-          density="compact"
-          rowHeight={52}
+          rowHeight={52} // two lines: the name and the employee code
           pageSizeOptions={[25, 50, 100]}
           paginationModel={paginationModel}
           onPaginationModelChange={(model: GridPaginationModel) =>
