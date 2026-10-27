@@ -1,8 +1,10 @@
 export { AuthUser, LoginRequest, MeResponse } from './contracts/auth.ts';
 export {
   CountryCodeSchema,
+  CreateEmployeeRequest,
   CurrencyCodeSchema,
   EMPLOYEE_SORT_FIELDS,
+  EmployeeDetail,
   EmployeeFilters,
   EmployeeListItem,
   EmployeeListQuery,
@@ -11,8 +13,16 @@ export {
   type EmployeeSortField,
   EmployeeStatusFilter,
   FxInfo,
+  IsoDateSchema,
+  LeaveRequest,
   MoneySchema,
   ReferenceDataResponse,
+  SALARY_CHANGE_REASONS,
+  SalaryChangeReason,
+  SalaryChangeRequest,
+  SalaryHistoryEntry,
+  SalaryReason,
+  UpdateEmployeeRequest,
 } from './contracts/employees.ts';
 export { HealthResponse } from './contracts/health.ts';
 export {
