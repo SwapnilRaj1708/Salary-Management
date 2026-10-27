@@ -590,7 +590,12 @@ don't share memory.
   as one read batch. Locally, on the 10,000-employee seed, a list request took 7–52 ms
   (S6).
 - Built bundles (S6): the main chunk is 206 KB gzip and the lazy directory chunk, with the
-  Data Grid, 162 KB gzip.
+  Data Grid, 162 KB gzip. In S8 the build splits shared MUI code into its own chunks: the
+  entry is 91 KB gzip plus a 129 KB form-components chunk the login page needs, the
+  directory 135 KB, Insights (with X Charts) 91 KB and the date picker 47 KB.
+- Insights (S8), locally on the 10,000-employee seed: by job title, by department and a
+  distribution took 10–45 ms. By country took 60–130 ms warm and 274 ms on the first call:
+  it reads every active salary, sorted, to take each country's median in TypeScript.
 - The heavy routes are lazy-loaded: the directory (Data Grid) and Insights (charts). In a
   probe, everything together was about 425 KB gzip, and React plus MUI core about 164 KB.
 - The UI keeps the previous page visible while the next one loads, and search waits

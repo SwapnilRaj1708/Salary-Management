@@ -7,10 +7,10 @@ and to answer "how do we pay people?". This is a take-home assessment for Incuby
 > `Password@123`, published on purpose for reviewers. Changes are saved and shared by
 > everyone using the demo, and re-running the seed restores the starting data.
 >
-> **Status:** slices S1–S7 are done: the walking skeleton, the Vercel deployment, money
+> **Status:** slices S1–S8 are done: the walking skeleton, the Vercel deployment, money
 > handling, the database with its 10,000-employee seed, sign-in, the employee directory
-> with search, filters, sorting and paging, and employee records: add, edit, salary
-> changes with history, and marking someone as left. The next slices are in
+> with search, filters, sorting and paging, employee records (add, edit, salary changes
+> with history, marking someone as left) and the Insights page. The next slices are in
 > [docs/plan.md](docs/plan.md). The demo login and video will be added here as they exist.
 
 ## Run it locally
