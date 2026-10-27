@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CreateEmployeeRequest,
+  EmployeeExportQuery,
   EmployeeFilters,
   EmployeeListQuery,
   LeaveRequest,
@@ -115,5 +116,20 @@ describe('LeaveRequest', () => {
   it('needs a real leaving date', () => {
     expect(LeaveRequest.parse({ leftOn: '2026-10-27' })).toEqual({ leftOn: '2026-10-27' });
     expect(LeaveRequest.safeParse({ leftOn: '2026-13-01' }).success).toBe(false);
+  });
+});
+
+describe('EmployeeExportQuery', () => {
+  it('takes the directory filters and sort, with the same defaults', () => {
+    expect(EmployeeExportQuery.parse({ country: 'JP', sort: '-salaryUsd' })).toEqual({
+      country: 'JP',
+      status: 'active',
+      sort: '-salaryUsd',
+    });
+  });
+
+  it('rejects paging, because an export covers every match', () => {
+    expect(EmployeeExportQuery.safeParse({ page: '2' }).success).toBe(false);
+    expect(EmployeeExportQuery.safeParse({ pageSize: '25' }).success).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ export {
   CurrencyCodeSchema,
   EMPLOYEE_SORT_FIELDS,
   EmployeeDetail,
+  EmployeeExportQuery,
   EmployeeFilters,
   EmployeeListItem,
   EmployeeListQuery,
