@@ -385,9 +385,10 @@ from an injected clock. Tests pin the instant, so every date rule is determinist
 Assumption 4 says "basic authentication". This is read as a simple email-and-password login
 for a single HR role, not HTTP Basic, which has no logout and uses the browser's own prompt.
 
-- **Users table.** At startup (§10), one HR user is created from `ADMIN_EMAIL` and
-  `ADMIN_PASSWORD` if the table is empty. In production the API refuses to serve without
-  them. The user's id is recorded as `changed_by_user_id` on every salary change, which
+- **Users table.** At startup (§10), the HR user from `ADMIN_EMAIL` and `ADMIN_PASSWORD` is
+  created if no user has that email yet, so changing `ADMIN_EMAIL` takes effect. Emails are
+  stored in lower case. Deployments refuse to start without both variables; local runs fall
+  back to a local-only default login (README). The deployed password is never in the repo. The user's id is recorded as `changed_by_user_id` on every salary change, which
   gives an audit trail.
 - **Passwords.**
   - Hashed with async `crypto.scrypt` using N=2^15, r=8, p=3, one of OWASP's
@@ -398,12 +399,15 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
   - A hash costs real CPU time on a Vercel Function; S10 measures it as part of login
     time. Whatever it is, it is accepted, because it happens once per login, and lowering the cost would drop
     below OWASP's minimum.
-  - Wrong email and wrong password get the same error.
+  - Wrong email and wrong password get the same error, `INVALID_CREDENTIALS`. An unknown
+    email is checked against a dummy hash, so it costs the same scrypt work and response
+    times don't reveal which emails exist.
 - **Sessions.**
   - The token is 32 random bytes, sent in a cookie named `sid`. The cookie is `HttpOnly`,
     `SameSite=Lax`, `Path=/`, and `Secure` in production.
-  - `Secure` comes from config, not from `req.secure`, which depends on proxy settings.
-    Tests run on http and set `Secure` off.
+  - `Secure` comes from config, not from `req.secure`, which depends on proxy settings: it
+    is on for every Vercel deployment (`VERCEL_ENV` is set), which is always HTTPS. Local
+    runs and tests are plain http.
   - The cookie never sets `Domain`, so it stays host-only, on the one Vercel host that
     serves both the app and the API.
   - Only the SHA-256 of the token is stored, so a copy of the database contains no usable
@@ -412,6 +416,11 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
   - Sessions live in the database, so they survive deploys and idle time. When one
     expires, the web app's redirect on 401 takes the user to the login page.
   - A new token is created at every login.
+- **Web app.** Every page except `/login` sits under a layout route whose `beforeLoad`
+  asks `/api/auth/me` (cached by TanStack Query) and redirects to
+  `/login?redirect=<where they were going>` when nobody is signed in. After login only a
+  same-site path (`/…`, not `//…`) is followed. Any later 401, such as an expired session,
+  clears the cached user and returns to the login page.
 - **CSRF.**
   - The app is same-origin and CORS is off.
   - `SameSite=Lax` keeps the cookie off cross-site POSTs.
@@ -465,7 +474,7 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
      variables, `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
   2. Apply pending migrations (below).
   3. Sync reference data from `shared/`, only when it changed.
-  4. Create the HR user if there is none (from S5).
+  4. Create the HR user if no user has the configured email.
 
   Only a successful preparation is kept. If it fails (Turso unreachable for a moment, say),
   the promise is dropped and the next request tries again, instead of the warm instance

@@ -30,7 +30,7 @@ export type Config = {
 /** Without a configured database, local runs use this file (relative to the api folder). */
 const LOCAL_DATABASE_URL = 'file:data/local.db';
 
-/** Without a configured HR login, local runs use the published demo one (README). */
+/** Without a configured HR login, local runs use this local-only one (README). */
 const LOCAL_ADMIN = { email: 'admin@acme.example', password: 'local-demo-password' };
 
 /** Reads and validates the environment once at boot. Invalid config stops the process. */

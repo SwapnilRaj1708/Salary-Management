@@ -3,10 +3,11 @@
 A web app for ACME's HR manager to manage salaries for 10,000 employees across countries,
 and to answer "how do we pay people?". This is a take-home assessment for Incubyte.
 
-> **Live:** https://salary-management-topaz.vercel.app
+> **Live:** https://salary-management-topaz.vercel.app (sign-in required). Changes are
+> saved and shared by everyone using the demo.
 >
-> **Status:** slices S1–S4 are done: the walking skeleton, the Vercel deployment, money
-> handling, and the database with its 10,000-employee seed. The next slices are in
+> **Status:** slices S1–S5 are done: the walking skeleton, the Vercel deployment, money
+> handling, the database with its 10,000-employee seed, and sign-in. The next slices are in
 > [docs/plan.md](docs/plan.md). The demo login and video will be added here as they exist.
 
 ## Run it locally
@@ -18,6 +19,9 @@ npm ci
 npm run dev      # API on http://localhost:3000, web app on http://localhost:5173
 npm run verify   # lint, type-check and every test
 ```
+
+Locally, sign in as `admin@acme.example` with the password `local-demo-password`, a
+local-only default. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` to use your own.
 
 Other scripts:
 - `npm test -- --project web` runs one workspace's tests.
@@ -62,7 +66,8 @@ The owner does this once. The reasons are in [architecture §10](docs/architectu
    token for each.
 3. **Vercel → Settings → Environment Variables:** set `TURSO_DATABASE_URL` and
    `TURSO_AUTH_TOKEN` for Production (production database) and for Preview (preview
-   database). From slice S5, also set `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
+   database), and `ADMIN_EMAIL` and `ADMIN_PASSWORD` for both: the HR login. A deployment
+   without them refuses to start.
 4. **GitHub → Settings → Secrets and variables → Actions:** add four repository secrets,
    `TURSO_PREVIEW_DATABASE_URL`, `TURSO_PREVIEW_AUTH_TOKEN`,
    `TURSO_PRODUCTION_DATABASE_URL` and `TURSO_PRODUCTION_AUTH_TOKEN`.
