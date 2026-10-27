@@ -3,8 +3,9 @@
 A web app for ACME's HR manager to manage salaries for 10,000 employees across countries,
 and to answer "how do we pay people?". This is a take-home assessment for Incubyte.
 
-> **Live:** https://salary-management-topaz.vercel.app (sign-in required). Changes are
-> saved and shared by everyone using the demo.
+> **Live:** https://salary-management-topaz.vercel.app. Demo login: `admin@acme.example` /
+> `Password@123`, published on purpose for reviewers. Changes are saved and shared by
+> everyone using the demo, and re-running the seed restores the starting data.
 >
 > **Status:** slices S1–S5 are done: the walking skeleton, the Vercel deployment, money
 > handling, the database with its 10,000-employee seed, and sign-in. The next slices are in
