@@ -37,7 +37,7 @@ const LOCAL_DATABASE_URL = 'file:data/local.db';
 /** Without a configured HR login, local runs use this local-only one (README). */
 const LOCAL_ADMIN = { email: 'admin@acme.example', password: 'local-demo-password' };
 
-/** Without APP_TIME_ZONE, "today" is the date in India, where the HR team works. */
+/** Without APP_TIME_ZONE, "today" is the date in India; set it to the HR team's zone. */
 const DEFAULT_TIME_ZONE = 'Asia/Kolkata';
 
 /** Reads and validates the environment once at boot. Invalid config stops the process. */

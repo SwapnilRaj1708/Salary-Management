@@ -377,8 +377,26 @@ field list for validation failures:
 | Salary change | The employee is active. The latest effective date ≤ `effectiveDate` ≤ today; the same day as the latest change is allowed, and the change recorded later wins. The amount differs from the current salary. The reason is one of `annual_review, promotion, market_adjustment, correction, other`, and `hire` is reserved for creation. A note is required when the reason is `other`. The history row and the cached current salary are written in one atomic batch. |
 | Mark as left | `leftOn` is ≥ both the hire date and the latest salary change, and ≤ today. Leavers drop out of insights and out of the default list. |
 
-**"Today"** is the calendar date in a configured IANA time zone (`APP_TIME_ZONE`), taken
-from an injected clock. Tests pin the instant, so every date rule is deterministic.
+**"Today"** is the calendar date in a configured IANA time zone (`APP_TIME_ZONE`, default
+`Asia/Kolkata`; deployments set the HR team's zone), taken from an injected clock. An unknown zone
+stops the API at boot. Tests pin the instant, so every date rule is deterministic. The web
+app limits its date pickers with the browser's own date; the API's answer decides.
+
+**Where each rule is enforced.** The service checks every rule above first, for an error
+that names the field. Migration 2 adds triggers that enforce the stored-data rules again
+inside the write batch (D17). Each `RAISE` message is the API error code:
+
+| Trigger | Rejects | Code |
+|---|---|---|
+| `salary_history_employee_left` | a salary-history row for a leaver | `EMPLOYEE_LEFT` |
+| `salary_history_hire_first` | a second `hire` row | `HIRE_ALREADY_RECORDED` (unreachable through the API) |
+| `salary_history_in_order` | a row dated before the employee's latest change | `EFFECTIVE_DATE_BEFORE_LATEST_CHANGE` |
+| `salary_history_changes_amount` | a row with the same amount as the latest one | `SALARY_UNCHANGED` |
+| `employees_left_read_only` | any update to a leaver | `EMPLOYEE_LEFT` |
+| `employees_left_after_latest_change` | a leaving date before the latest change | `DATE_OUT_OF_RANGE` |
+
+Because of the leaver trigger, the seed inserts everyone as active and marks leavers after
+their history is written.
 
 ## 9. Authentication
 
@@ -471,7 +489,8 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
 - **Startup.** A function has no boot step. So the first request on a fresh instance
   prepares the database, and the requests after it await the same promise:
   1. Validate config. In production the API refuses to serve without the database
-     variables, `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
+     variables, `ADMIN_EMAIL` and `ADMIN_PASSWORD`. `APP_TIME_ZONE` is optional and must
+     be an IANA time zone.
   2. Apply pending migrations (below).
   3. Sync reference data from `shared/`, only when it changed.
   4. Create the HR user if no user has the configured email.
@@ -548,6 +567,8 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
 - Seeding 10,000 employees in under 2 seconds locally: 0.8 s for 10,000 employees and
   46,408 salary changes into a local file (S4). Over the network from GitHub Actions to
   Turso in `aws-us-east-1`, the same seed took 11.0 s (preview) and 4.9 s (production).
+  The S7 triggers check every inserted history row, and the local seed now takes
+  1.2–1.6 s.
 
 Every query is a network round trip from the function to Turso. Both sit in the same AWS
 region, so a round trip takes a few milliseconds, but latency now depends more on the

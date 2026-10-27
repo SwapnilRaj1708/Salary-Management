@@ -56,7 +56,7 @@ Everything comes from one `createAppTheme()` in `web/src/theme/theme.ts`.
 | Palette | Primary `#2952cc`; MUI's default greys and semantic colours | Light mode only in v1. Dark mode is cheap later with `colorSchemes`. |
 | Typography | `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`; buttons not upper-cased | Tables and money use `font-variant-numeric: tabular-nums`, so digits line up |
 | Shape | `borderRadius: 8` | |
-| Density | `size="small"` text fields; `density="compact"` grid | The app is data-dense |
+| Density | `size="small"` text fields, including the date picker's own field, which doesn't take the `MuiTextField` default *(verified)*; standard grid density with 52 px rows (two lines per row) | The app is data-dense |
 | Defaults | `MuiButton`: `disableElevation`, `loadingPosition: 'start'`; `MuiDataGrid`: `disableRowSelectionOnClick` | Set once as component default props, not on each use. The default `center` loading position hides a button's label behind the spinner *(verified)*. |
 
 ## 4. Motion
@@ -140,5 +140,7 @@ The theme also sets `motion: { reducedMotion: 'system' }`.
 
 - **Lazy loading.** The directory (Data Grid) and Insights (charts) routes are
   lazy-loaded. In a probe, everything together was about 425 KB gzip, and React plus MUI
-  core about 164 KB.
+  core about 164 KB. The employee page and the new-employee form are lazy-loaded too; the
+  date picker and `dayjs` come in a shared chunk of about 49 KB gzip that only those pages
+  load (S7).
 - **Icons** are imported by path; a Biome rule bans the barrel import.
