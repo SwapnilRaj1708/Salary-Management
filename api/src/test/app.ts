@@ -1,3 +1,4 @@
+import request from 'supertest';
 import { buildApp } from '../app.ts';
 import type { ScryptParams } from '../auth/password.ts';
 import { openDb } from '../db/client.ts';
@@ -36,4 +37,12 @@ export function testApp({
     passwordParams: FAST_SCRYPT,
   });
   return { app, db };
+}
+
+/** A supertest agent that has signed in as the test HR user and keeps the session cookie. */
+export async function signedInAgent(app: ReturnType<typeof testApp>['app']) {
+  const agent = request.agent(app);
+  const res = await agent.post('/api/auth/login').send(TEST_HR);
+  if (res.status !== 200) throw new Error(`test login failed with ${res.status}`);
+  return agent;
 }

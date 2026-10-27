@@ -3,16 +3,18 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   Outlet,
   type RouterHistory,
   redirect,
+  stripSearchParams,
 } from '@tanstack/react-router';
 import { z } from 'zod';
 import { meQuery } from './api/queries.ts';
 import { AppShell } from './app/AppShell.tsx';
 import { pageTransitionTypes } from './app/pageTransition.ts';
 import { LoginPage, safeRedirect } from './features/auth/LoginPage.tsx';
-import { EmployeesPage } from './features/employees/EmployeesPage.tsx';
+import { DIRECTORY_DEFAULTS, DirectorySearch } from './features/employees/search.ts';
 import { InsightsPage } from './features/insights/InsightsPage.tsx';
 
 export type RouterContext = { queryClient: QueryClient };
@@ -59,7 +61,13 @@ const indexRoute = createRoute({
 const employeesRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: '/employees',
-  component: EmployeesPage,
+  validateSearch: DirectorySearch,
+  search: { middlewares: [stripSearchParams(DIRECTORY_DEFAULTS)] },
+  // Lazy-loaded: the Data Grid is the heaviest part of the bundle (decision D7).
+  component: lazyRouteComponent(
+    () => import('./features/employees/EmployeesPage.tsx'),
+    'EmployeesPage',
+  ),
 });
 
 const insightsRoute = createRoute({

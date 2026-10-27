@@ -7,8 +7,9 @@ and to answer "how do we pay people?". This is a take-home assessment for Incuby
 > `Password@123`, published on purpose for reviewers. Changes are saved and shared by
 > everyone using the demo, and re-running the seed restores the starting data.
 >
-> **Status:** slices S1–S5 are done: the walking skeleton, the Vercel deployment, money
-> handling, the database with its 10,000-employee seed, and sign-in. The next slices are in
+> **Status:** slices S1–S6 are done: the walking skeleton, the Vercel deployment, money
+> handling, the database with its 10,000-employee seed, sign-in, and the employee
+> directory with search, filters, sorting and paging. The next slices are in
 > [docs/plan.md](docs/plan.md). The demo login and video will be added here as they exist.
 
 ## Run it locally
