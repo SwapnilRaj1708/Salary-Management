@@ -187,7 +187,15 @@ export const useDistribution = (country: CountryCode) =>
     placeholderData: keepPreviousData,
   });
 
-function toQueryString(filters: EmployeeFilters): string {
+/**
+ * The CSV download for the directory's current filters and sort. Every match is exported,
+ * so paging is left out. A plain link: the browser downloads it with the session cookie.
+ */
+export function exportCsvUrl({ page: _page, pageSize: _pageSize, ...filters }: EmployeeFilters) {
+  return `/api/employees/export.csv?${toQueryString(filters)}`;
+}
+
+function toQueryString(filters: Partial<EmployeeFilters>): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== '') params.set(key, String(value));

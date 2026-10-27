@@ -1,4 +1,5 @@
 import AddIcon from '@mui/icons-material/Add';
+import DownloadIcon from '@mui/icons-material/Download';
 import SearchIcon from '@mui/icons-material/Search';
 import Alert from '@mui/material/Alert';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -26,7 +27,7 @@ import {
 } from '@salary/shared';
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
-import { useEmployees, useReferenceData } from '../../api/queries.ts';
+import { exportCsvUrl, useEmployees, useReferenceData } from '../../api/queries.ts';
 import { ButtonLink } from '../../app/ButtonLink.tsx';
 import { formatUsd } from '../../app/formatUsd.ts';
 import { TextLink } from '../../app/TextLink.tsx';
@@ -167,10 +168,11 @@ export function EmployeesPage() {
         <Typography variant="h4" component="h1">
           Employees
         </Typography>
+        {/* On a phone the count takes its own line, so the buttons keep one-line labels. */}
         <Stack
-          direction="row"
-          spacing={2}
-          sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={{ xs: 1, sm: 2 }}
+          sx={{ alignItems: { sm: 'center' } }}
         >
           {employees.data && (
             <Typography variant="body2" color="text.secondary">
@@ -178,9 +180,20 @@ export function EmployeesPage() {
               {employees.data.fx.asOf}
             </Typography>
           )}
-          <ButtonLink to="/employees/new" variant="contained" startIcon={<AddIcon />}>
-            Add employee
-          </ButtonLink>
+          <Stack direction="row" spacing={1} sx={{ whiteSpace: 'nowrap' }}>
+            <Button
+              component="a"
+              href={exportCsvUrl(search)}
+              download
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+            >
+              Export CSV
+            </Button>
+            <ButtonLink to="/employees/new" variant="contained" startIcon={<AddIcon />}>
+              Add employee
+            </ButtonLink>
+          </Stack>
         </Stack>
       </Stack>
 
