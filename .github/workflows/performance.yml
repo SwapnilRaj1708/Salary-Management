@@ -1,0 +1,55 @@
+name: Performance
+
+# Run by hand from the Actions tab: times the deployed app from a GitHub runner with
+# npm run measure, and writes the table to the run's summary (docs/performance.md).
+# The HR login comes from repository secrets, the same values as in Vercel.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: The site to measure
+        type: string
+        default: https://salary-management-topaz.vercel.app
+        required: true
+      rounds:
+        description: Requests per scenario after a warm-up
+        type: number
+        default: 30
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: performance
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_URL: ${{ inputs.url }}
+      ROUNDS: ${{ inputs.rounds }}
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Refuse to run without the login secrets
+        run: |
+          if [ -z "$ADMIN_EMAIL" ] || [ -z "$ADMIN_PASSWORD" ]; then
+            echo "Add the ADMIN_EMAIL and ADMIN_PASSWORD repository secrets first (the same values as in Vercel)."
+            exit 1
+          fi
+
+      - name: Measure
+        run: npm run measure

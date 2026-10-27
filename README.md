@@ -7,11 +7,27 @@ and to answer "how do we pay people?". This is a take-home assessment for Incuby
 > `Password@123`, published on purpose for reviewers. Changes are saved and shared by
 > everyone using the demo, and re-running the seed restores the starting data.
 >
-> **Status:** slices S1–S9 are done: the walking skeleton, the Vercel deployment, money
-> handling, the database with its 10,000-employee seed, sign-in, the employee directory
-> with search, filters, sorting and paging, employee records (add, edit, salary changes
-> with history, marking someone as left), the Insights page and the CSV export. The next slices are in
-> [docs/plan.md](docs/plan.md). The demo login and video will be added here as they exist.
+> **Video:** a 4-minute walkthrough, following [docs/demo-script.md](docs/demo-script.md).
+> *Link to be added.*
+
+## What it does
+
+- **Directory** of 10,000 employees in 10 countries: search by name, email or code, filter
+  by country, department, job title and status, sort on any column, page on the server.
+  Filters live in the URL.
+- **Employee records:** add someone with a starting salary, edit their details, record a
+  salary change with its date and reason, mark them as left. Salary history is
+  append-only, and a leaver's record becomes read-only.
+- **Insights** for active employees: min, median, average and max by country in local
+  currency; average pay by job title, across countries in USD or within one country;
+  payroll by department; a pay distribution with P10–P90 per country.
+- **CSV export** of the filtered directory that Excel opens correctly.
+- Money is stored as integers in each currency's minor unit; USD figures use one static
+  rate snapshot and say so.
+
+| Directory | Employee | Insights |
+|---|---|---|
+| [![The employee directory](docs/images/directory.png)](docs/images/directory.png) | [![An employee's page with salary history](docs/images/employee.png)](docs/images/employee.png) | [![The Insights page](docs/images/insights.png)](docs/images/insights.png) |
 
 ## Run it locally
 
@@ -28,6 +44,9 @@ local-only default. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` to use your own.
 
 Other scripts:
 - `npm test -- --project web` runs one workspace's tests.
+- `npm run seed -- --reset` rebuilds the local database with the 10,000 employees.
+- `npm run measure` times the running app (set `BASE_URL` for another site); see
+  [docs/performance.md](docs/performance.md).
 - `npm run build` builds the web app.
 - `npm start` runs the API alone.
 - `node scripts/deploy-smoke.mjs` builds the repo with Vercel's CLI and boots the result,
@@ -44,10 +63,24 @@ Other scripts:
 | Design system (components, tokens, motion) | [docs/design-system.md](docs/design-system.md) |
 | How changes reach `main` | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Trade-offs and decisions | [docs/decisions.md](docs/decisions.md) |
-| Performance considerations | [docs/architecture.md §11](docs/architecture.md#11-performance-considerations); measured numbers to come in `docs/performance.md` |
+| Performance considerations | [docs/architecture.md §11](docs/architecture.md#11-performance-considerations), measured numbers in [docs/performance.md](docs/performance.md) |
+| Demo video script | [docs/demo-script.md](docs/demo-script.md) |
 | AI prompts and workflow | [docs/ai/](docs/ai/README.md), [CLAUDE.md](CLAUDE.md) |
 
-## Stack (planned)
+## Tests
+
+407 tests run in CI on every pull request (`npm run verify`): 94 in `shared`, 240 in
+`api`, 73 in `web`. Coverage is 96% of statements and 85% of branches
+(`npx vitest run --coverage`); it is reported, not enforced.
+
+- Domain and API behaviour were written test first: each feature has a `test:` commit
+  that fails, then the `feat:` commit that makes it pass.
+- API tests run every route through the real app on a fresh in-memory database with the
+  real migrations. The clock is injected, so date rules are deterministic.
+- The suite takes about 45 s, over the plan's 10 s target, mostly from rendering the Data
+  Grid, dialogs and charts in jsdom ([plan](docs/plan.md#test-strategy)).
+
+## Stack
 
 - **API:** Node 22, TypeScript, Express 5, SQLite through libSQL (`@libsql/client`).
 - **Web:** React 19, Vite, MUI (Material UI, X Data Grid, X Charts, X Date Pickers),
@@ -75,9 +108,12 @@ The owner does this once. The reasons are in [architecture §10](docs/architectu
    `Asia/Kolkata`.
 4. **GitHub → Settings → Secrets and variables → Actions:** add four repository secrets,
    `TURSO_PREVIEW_DATABASE_URL`, `TURSO_PREVIEW_AUTH_TOKEN`,
-   `TURSO_PRODUCTION_DATABASE_URL` and `TURSO_PRODUCTION_AUTH_TOKEN`.
+   `TURSO_PRODUCTION_DATABASE_URL` and `TURSO_PRODUCTION_AUTH_TOKEN`. For the Performance
+   workflow, also add `ADMIN_EMAIL` and `ADMIN_PASSWORD`, the same values as in Vercel.
 5. **Actions → Database → Run workflow:** run `check`, then `seed`, once for each database.
    `seed` replaces all employees with the 10,000 seeded ones, so it also resets the demo.
+6. **Actions → Performance → Run workflow** (optional): times the deployed app and writes
+   the table to the run's summary.
 
 Every change goes through its own branch and a pull request into `main`; nobody pushes to
 `main` directly. See [CONTRIBUTING.md](CONTRIBUTING.md).

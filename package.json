@@ -22,6 +22,7 @@
     "start": "npm run start -w @salary/api",
     "seed": "npm run seed -w @salary/api --",
     "db:check": "npm run db:check -w @salary/api",
+    "measure": "npm run measure -w @salary/api",
     "build": "npm run build -w @salary/web"
   },
   "devDependencies": {

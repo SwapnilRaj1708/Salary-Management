@@ -12,7 +12,8 @@
     "start": "node src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
     "seed": "node src/seed/cli.ts",
-    "db:check": "node src/db/check-cli.ts"
+    "db:check": "node src/db/check-cli.ts",
+    "measure": "node src/perf/cli.ts"
   },
   "dependencies": {
     "@libsql/client": "0.18.0",
