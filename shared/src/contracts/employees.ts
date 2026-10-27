@@ -105,3 +105,94 @@ export const ReferenceDataResponse = z.object({
   jobTitles: z.array(NamedRef),
 });
 export type ReferenceDataResponse = z.infer<typeof ReferenceDataResponse>;
+
+/** A real calendar date written `YYYY-MM-DD` (2024-02-30 is rejected). */
+export const IsoDateSchema = z.iso.date();
+
+/** Reasons HR can give for a salary change. `hire` is reserved for the first row. */
+export const SALARY_CHANGE_REASONS = [
+  'annual_review',
+  'promotion',
+  'market_adjustment',
+  'correction',
+  'other',
+] as const;
+export const SalaryChangeReason = z.enum(SALARY_CHANGE_REASONS);
+export type SalaryChangeReason = z.infer<typeof SalaryChangeReason>;
+export const SalaryReason = z.enum(['hire', ...SALARY_CHANGE_REASONS]);
+export type SalaryReason = z.infer<typeof SalaryReason>;
+
+/** A positive whole number of minor units that a JavaScript number holds exactly. */
+const AmountMinor = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
+const Id = z.number().int().positive();
+const FullName = z.string().trim().min(1).max(200);
+const Email = z.string().trim().toLowerCase().pipe(z.email().max(254));
+
+/** Body of `POST /api/employees`. The salary is in the country's currency. */
+export const CreateEmployeeRequest = z
+  .object({
+    fullName: FullName,
+    email: Email,
+    jobTitleId: Id,
+    departmentId: Id,
+    countryCode: CountryCodeSchema,
+    hireDate: IsoDateSchema,
+    salaryMinor: AmountMinor,
+  })
+  .strict();
+export type CreateEmployeeRequest = z.infer<typeof CreateEmployeeRequest>;
+
+/** Body of `PATCH /api/employees/:id`: any of these, at least one. */
+export const UpdateEmployeeRequest = z
+  .object({
+    fullName: FullName,
+    email: Email,
+    jobTitleId: Id,
+    departmentId: Id,
+  })
+  .partial()
+  .strict()
+  .refine((body) => Object.keys(body).length > 0, { message: 'Change at least one field' });
+export type UpdateEmployeeRequest = z.infer<typeof UpdateEmployeeRequest>;
+
+/** Body of `POST /api/employees/:id/salary-changes`. A blank note counts as no note. */
+export const SalaryChangeRequest = z
+  .object({
+    amountMinor: AmountMinor,
+    effectiveDate: IsoDateSchema,
+    reason: SalaryChangeReason,
+    note: z
+      .string()
+      .trim()
+      .max(500)
+      .optional()
+      .transform((note) => note || undefined),
+  })
+  .strict()
+  .refine((body) => body.reason !== 'other' || body.note !== undefined, {
+    message: 'Add a note when the reason is "other"',
+    path: ['note'],
+  });
+export type SalaryChangeRequest = z.infer<typeof SalaryChangeRequest>;
+
+/** Body of `POST /api/employees/:id/leave`. */
+export const LeaveRequest = z.object({ leftOn: IsoDateSchema }).strict();
+export type LeaveRequest = z.infer<typeof LeaveRequest>;
+
+export const SalaryHistoryEntry = z.object({
+  id: Id,
+  effectiveDate: z.string(),
+  amount: MoneySchema,
+  reason: SalaryReason,
+  note: z.string().nullable(),
+  /** Change from the previous row in per cent, to one decimal; null for the hire row. */
+  changePercent: z.number().nullable(),
+});
+export type SalaryHistoryEntry = z.infer<typeof SalaryHistoryEntry>;
+
+/** An employee with their salary history, newest first. */
+export const EmployeeDetail = EmployeeListItem.extend({
+  salaryHistory: z.array(SalaryHistoryEntry),
+  fx: FxInfo,
+});
+export type EmployeeDetail = z.infer<typeof EmployeeDetail>;

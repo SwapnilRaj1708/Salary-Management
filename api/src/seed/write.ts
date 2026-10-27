@@ -32,6 +32,8 @@ export async function writeOrg(
   const departmentIds = await idsByName(db, 'departments');
   const titleIds = await idsByName(db, 'job_titles');
 
+  // Everyone is inserted as active and leavers are marked after their history is written,
+  // because the database refuses salary history for someone who has already left.
   const employeeRows: InValue[][] = org.map((e, index) => [
     index + 1,
     e.fullName,
@@ -40,10 +42,11 @@ export async function writeOrg(
     idOf(departmentIds, e.department),
     e.countryCode,
     e.hireDate,
-    e.leftOn === null ? 'active' : 'left',
-    e.leftOn,
     e.salaryMinor,
   ]);
+  const leaverRows: InValue[][] = org.flatMap((e, index) =>
+    e.leftOn === null ? [] : [[index + 1, e.leftOn]],
+  );
   const historyRows: InValue[][] = org.flatMap((e, index) =>
     e.history.map((change) => [
       index + 1,
@@ -57,13 +60,14 @@ export async function writeOrg(
   const statements: InStatement[] = [
     ...(reset ? ['DELETE FROM salary_history', 'DELETE FROM employees'] : []),
     ...inserts(
-      'employees (id, full_name, email, job_title_id, department_id, country_code, hire_date, status, left_on, current_salary_minor)',
+      'employees (id, full_name, email, job_title_id, department_id, country_code, hire_date, current_salary_minor)',
       employeeRows,
     ),
     ...inserts(
       'salary_history (employee_id, amount_minor, currency_code, effective_date, reason)',
       historyRows,
     ),
+    ...leaverUpdates(leaverRows),
   ];
   for (let i = 0; i < statements.length; i += STATEMENTS_PER_BATCH) {
     await db.batch(statements.slice(i, i + STATEMENTS_PER_BATCH), 'write');
@@ -77,6 +81,21 @@ function inserts(target: string, rows: InValue[][]): InStatement[] {
     const chunk = rows.slice(i, i + ROWS_PER_INSERT);
     const placeholders = chunk.map((row) => `(${row.map(() => '?').join(', ')})`).join(', ');
     statements.push({ sql: `INSERT INTO ${target} VALUES ${placeholders}`, args: chunk.flat() });
+  }
+  return statements;
+}
+
+/** Marks leavers in chunks: `UPDATE … FROM (VALUES (id, leftOn), …)`. */
+function leaverUpdates(rows: InValue[][]): InStatement[] {
+  const statements: InStatement[] = [];
+  for (let i = 0; i < rows.length; i += ROWS_PER_INSERT) {
+    const chunk = rows.slice(i, i + ROWS_PER_INSERT);
+    statements.push({
+      sql: `UPDATE employees SET status = 'left', left_on = leavers.column2
+            FROM (VALUES ${chunk.map(() => '(?, ?)').join(', ')}) AS leavers
+            WHERE employees.id = leavers.column1`,
+      args: chunk.flat(),
+    });
   }
   return statements;
 }

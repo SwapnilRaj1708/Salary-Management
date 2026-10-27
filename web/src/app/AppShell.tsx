@@ -6,10 +6,13 @@ import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { useQuery } from '@tanstack/react-query';
 import { Outlet, useNavigate } from '@tanstack/react-router';
 import { meQuery, useLogout } from '../api/queries.ts';
 import { ButtonLink } from './ButtonLink.tsx';
+import { ToastProvider } from './Toasts.tsx';
 import { PAGE_CONTENT_TRANSITION, ViewTransitionStyles } from './ViewTransitionStyles.tsx';
 
 const navLinkSx = {
@@ -87,7 +90,11 @@ export function AppShell() {
           Demo environment with 10,000 generated employees. Changes are saved and seen by everyone
           who uses this demo.
         </Alert>
-        <Outlet />
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <ToastProvider>
+            <Outlet />
+          </ToastProvider>
+        </LocalizationProvider>
       </Container>
     </Box>
   );

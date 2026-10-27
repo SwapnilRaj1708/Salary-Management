@@ -9,7 +9,16 @@ describe('loadConfig', () => {
       database: { url: 'file:data/local.db', authToken: undefined },
       admin: { email: 'admin@acme.example', password: 'local-demo-password' },
       cookieSecure: false,
+      timeZone: 'Asia/Kolkata',
     });
+  });
+
+  it('reads the time zone that decides "today" from APP_TIME_ZONE', () => {
+    expect(loadConfig({ APP_TIME_ZONE: 'Europe/London' }).timeZone).toBe('Europe/London');
+  });
+
+  it('refuses to start with a time zone it does not know', () => {
+    expect(() => loadConfig({ APP_TIME_ZONE: 'Mars/Olympus_Mons' })).toThrow(/APP_TIME_ZONE/);
   });
 
   it('reads the HR login from ADMIN_EMAIL and ADMIN_PASSWORD', () => {

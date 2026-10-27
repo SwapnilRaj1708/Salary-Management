@@ -1,3 +1,4 @@
+import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import Alert from '@mui/material/Alert';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -26,6 +27,8 @@ import {
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useEmployees, useReferenceData } from '../../api/queries.ts';
+import { ButtonLink } from '../../app/ButtonLink.tsx';
+import { TextLink } from '../../app/TextLink.tsx';
 import { useDelayedFlag } from '../../app/useDelayedFlag.ts';
 import { DIRECTORY_DEFAULTS, type DirectorySearch } from './search.ts';
 
@@ -58,7 +61,15 @@ const COLUMNS: GridColDef<EmployeeListItem>[] = [
     minWidth: 200,
     renderCell: ({ row }) => (
       <Stack sx={{ py: 0.5, lineHeight: 1.3 }}>
-        <span>{row.fullName}</span>
+        <TextLink
+          to="/employees/$employeeId"
+          params={{ employeeId: row.id }}
+          underline="hover"
+          color="inherit"
+          sx={{ fontWeight: 500 }}
+        >
+          {row.fullName}
+        </TextLink>
         <Typography variant="caption" color="text.secondary">
           {row.employeeCode}
         </Typography>
@@ -158,12 +169,21 @@ export function EmployeesPage() {
         <Typography variant="h4" component="h1">
           Employees
         </Typography>
-        {employees.data && (
-          <Typography variant="body2" color="text.secondary">
-            {employees.data.total.toLocaleString('en-US')} employees · USD at static rates as of{' '}
-            {employees.data.fx.asOf}
-          </Typography>
-        )}
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          {employees.data && (
+            <Typography variant="body2" color="text.secondary">
+              {employees.data.total.toLocaleString('en-US')} employees · USD at static rates as of{' '}
+              {employees.data.fx.asOf}
+            </Typography>
+          )}
+          <ButtonLink to="/employees/new" variant="contained" startIcon={<AddIcon />}>
+            Add employee
+          </ButtonLink>
+        </Stack>
       </Stack>
 
       <DirectoryFilters
@@ -198,6 +218,10 @@ export function EmployeesPage() {
             setFilters({ page: model.page + 1, pageSize: model.pageSize }, false)
           }
           sortModel={sortModel}
+          onRowClick={({ row }) =>
+            navigate({ to: '/employees/$employeeId', params: { employeeId: row.id } })
+          }
+          sx={{ '& .MuiDataGrid-row': { cursor: 'pointer' } }}
           onSortModelChange={(model) => {
             const sort = fromSortModel(model);
             if (sort !== search.sort) void setFilters({ sort });

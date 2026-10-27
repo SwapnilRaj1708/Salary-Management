@@ -21,17 +21,23 @@ export function settableClock(start = Date.UTC(2026, 9, 27, 9)) {
   } satisfies Clock & { advance(ms: number): void };
 }
 
-type TestAppOptions = { version?: string; clock?: Clock; cookieSecure?: boolean };
+type TestAppOptions = {
+  version?: string;
+  clock?: Clock;
+  cookieSecure?: boolean;
+  timeZone?: string;
+};
 
 /** The real app on a fresh in-memory database, prepared on its first request as in production. */
 export function testApp({
   version = 'test',
   clock = settableClock(),
   cookieSecure = false,
+  timeZone = 'UTC',
 }: TestAppOptions = {}) {
   const db = openDb({ url: ':memory:' });
   const app = buildApp({
-    config: { version, cookieSecure, admin: TEST_HR },
+    config: { version, cookieSecure, admin: TEST_HR, timeZone },
     db,
     clock,
     passwordParams: FAST_SCRYPT,

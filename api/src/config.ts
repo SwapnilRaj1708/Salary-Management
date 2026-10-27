@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { DbConfig } from './db/client.ts';
+import { isTimeZone } from './domain/dates.ts';
 
 // Vercel and `vercel env pull` can set a variable to an empty string; that counts as unset.
 const optional = z
@@ -17,6 +18,7 @@ const Env = z.object({
   TURSO_AUTH_TOKEN: optional,
   ADMIN_EMAIL: optional,
   ADMIN_PASSWORD: optional,
+  APP_TIME_ZONE: optional,
 });
 
 export type Config = {
@@ -25,6 +27,8 @@ export type Config = {
   database: DbConfig;
   admin: { email: string; password: string };
   cookieSecure: boolean;
+  /** The IANA time zone that decides what "today" is for date rules (decision X3). */
+  timeZone: string;
 };
 
 /** Without a configured database, local runs use this file (relative to the api folder). */
@@ -32,6 +36,9 @@ const LOCAL_DATABASE_URL = 'file:data/local.db';
 
 /** Without a configured HR login, local runs use this local-only one (README). */
 const LOCAL_ADMIN = { email: 'admin@acme.example', password: 'local-demo-password' };
+
+/** Without APP_TIME_ZONE, "today" is the date in India; set it to the HR team's zone. */
+const DEFAULT_TIME_ZONE = 'Asia/Kolkata';
 
 /** Reads and validates the environment once at boot. Invalid config stops the process. */
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -46,6 +53,10 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       throw new Error(`${name} must be set on a Vercel ${parsed.VERCEL_ENV} deployment`);
     }
   }
+  const timeZone = parsed.APP_TIME_ZONE ?? DEFAULT_TIME_ZONE;
+  if (!isTimeZone(timeZone)) {
+    throw new Error(`APP_TIME_ZONE "${timeZone}" is not an IANA time zone, such as Europe/London`);
+  }
   return {
     port: parsed.PORT,
     version: parsed.VERCEL_GIT_COMMIT_SHA ?? 'dev',
@@ -59,5 +70,6 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     },
     // Vercel deployments are always HTTPS; local runs and tests are plain http.
     cookieSecure: deployed,
+    timeZone,
   };
 }

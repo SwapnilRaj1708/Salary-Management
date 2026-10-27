@@ -171,3 +171,87 @@ describe('employee_salaries view', () => {
     expect(row?.salary_usd).toBeCloseTo(50_000, 6);
   });
 });
+
+describe('salary history and leaver triggers', () => {
+  /** Ada, hired 2024-03-01 on 9,000,000 minor units, with her hire row. */
+  async function dbWithAda() {
+    const db = await dbWithReferenceRows();
+    await insertRow(db, 'employees', anEmployee());
+    await insertRow(db, 'salary_history', aSalaryChange());
+    return db;
+  }
+
+  const raise = (overrides: Record<string, string | number> = {}) =>
+    aSalaryChange({
+      amount_minor: 9_500_000,
+      effective_date: '2025-03-01',
+      reason: 'annual_review',
+      ...overrides,
+    });
+
+  it('rejects a salary change dated before the latest one, naming the rule', async () => {
+    const db = await dbWithAda();
+    await insertRow(db, 'salary_history', raise());
+
+    await expect(
+      insertRow(
+        db,
+        'salary_history',
+        raise({ amount_minor: 9_800_000, effective_date: '2025-02-28' }),
+      ),
+    ).rejects.toThrow(/EFFECTIVE_DATE_BEFORE_LATEST_CHANGE/);
+  });
+
+  it('accepts a second change on the same day as the latest one', async () => {
+    const db = await dbWithAda();
+    await insertRow(db, 'salary_history', raise());
+
+    await insertRow(db, 'salary_history', raise({ amount_minor: 9_600_000, reason: 'correction' }));
+
+    const { rows } = await db.execute('SELECT count(*) AS n FROM salary_history');
+    expect(rows[0]?.n).toBe(3);
+  });
+
+  it('rejects a change that leaves the salary where it is', async () => {
+    const db = await dbWithAda();
+
+    await expect(
+      insertRow(db, 'salary_history', raise({ amount_minor: 9_000_000 })),
+    ).rejects.toThrow(/SALARY_UNCHANGED/);
+  });
+
+  it('rejects a second hire row', async () => {
+    const db = await dbWithAda();
+
+    await expect(insertRow(db, 'salary_history', raise({ reason: 'hire' }))).rejects.toThrow(
+      /HIRE_ALREADY_RECORDED/,
+    );
+  });
+
+  it('rejects a salary change for an employee who has left', async () => {
+    const db = await dbWithAda();
+    await db.execute("UPDATE employees SET status = 'left', left_on = '2025-06-30' WHERE id = 1");
+
+    await expect(
+      insertRow(db, 'salary_history', raise({ effective_date: '2025-06-30' })),
+    ).rejects.toThrow(/EMPLOYEE_LEFT/);
+  });
+
+  it('rejects any change to an employee who has left', async () => {
+    const db = await dbWithAda();
+    await db.execute("UPDATE employees SET status = 'left', left_on = '2025-06-30' WHERE id = 1");
+
+    await expect(
+      db.execute("UPDATE employees SET full_name = 'Ada King' WHERE id = 1"),
+    ).rejects.toThrow(/EMPLOYEE_LEFT/);
+  });
+
+  it('rejects a leaving date before the latest salary change', async () => {
+    const db = await dbWithAda();
+    await insertRow(db, 'salary_history', raise());
+
+    await expect(
+      db.execute("UPDATE employees SET status = 'left', left_on = '2025-02-28' WHERE id = 1"),
+    ).rejects.toThrow(/LEFT_BEFORE_LATEST_CHANGE/);
+  });
+});

@@ -7,9 +7,10 @@ and to answer "how do we pay people?". This is a take-home assessment for Incuby
 > `Password@123`, published on purpose for reviewers. Changes are saved and shared by
 > everyone using the demo, and re-running the seed restores the starting data.
 >
-> **Status:** slices S1–S6 are done: the walking skeleton, the Vercel deployment, money
-> handling, the database with its 10,000-employee seed, sign-in, and the employee
-> directory with search, filters, sorting and paging. The next slices are in
+> **Status:** slices S1–S7 are done: the walking skeleton, the Vercel deployment, money
+> handling, the database with its 10,000-employee seed, sign-in, the employee directory
+> with search, filters, sorting and paging, and employee records: add, edit, salary
+> changes with history, and marking someone as left. The next slices are in
 > [docs/plan.md](docs/plan.md). The demo login and video will be added here as they exist.
 
 ## Run it locally
@@ -69,7 +70,9 @@ The owner does this once. The reasons are in [architecture §10](docs/architectu
 3. **Vercel → Settings → Environment Variables:** set `TURSO_DATABASE_URL` and
    `TURSO_AUTH_TOKEN` for Production (production database) and for Preview (preview
    database), and `ADMIN_EMAIL` and `ADMIN_PASSWORD` for both: the HR login. A deployment
-   without them refuses to start.
+   without them refuses to start. Optionally set `APP_TIME_ZONE` (an IANA name such as
+   `Europe/London`) to decide what "today" is for date rules; it defaults to
+   `Asia/Kolkata`.
 4. **GitHub → Settings → Secrets and variables → Actions:** add four repository secrets,
    `TURSO_PREVIEW_DATABASE_URL`, `TURSO_PREVIEW_AUTH_TOKEN`,
    `TURSO_PRODUCTION_DATABASE_URL` and `TURSO_PRODUCTION_AUTH_TOKEN`.
