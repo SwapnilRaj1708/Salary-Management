@@ -41,11 +41,23 @@ export function addDays(date: IsoDate, days: number): IsoDate {
 }
 
 /** The calendar date at `instant` (epoch ms) in an IANA time zone (decision X3). */
-export function todayIn(_instant: number, _timeZone: string): IsoDate {
-  throw new Error('Not implemented');
+export function todayIn(instant: number, timeZone: string): IsoDate {
+  // en-CA formats dates as YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(instant);
 }
 
 /** Whether `name` is an IANA time zone this runtime knows. */
-export function isTimeZone(_name: string): boolean {
-  throw new Error('Not implemented');
+export function isTimeZone(name: string): boolean {
+  if (!name) return false;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: name });
+    return true;
+  } catch {
+    return false;
+  }
 }
