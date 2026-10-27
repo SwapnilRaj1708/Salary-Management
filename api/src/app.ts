@@ -9,6 +9,8 @@ import type { Clock } from './domain/clock.ts';
 import { employeesRepository } from './employees/repository.ts';
 import { employeesRouter } from './employees/routes.ts';
 import { employeesService } from './employees/service.ts';
+import { exportRouter } from './export/routes.ts';
+import { exportService } from './export/service.ts';
 import { errorHandler } from './http/errors.ts';
 import { healthRouter } from './http/health.ts';
 import { requireAuth } from './http/requireAuth.ts';
@@ -68,11 +70,20 @@ export function buildApp({
   app.use('/api', healthRouter({ version: config.version, db }));
   app.use('/api', authRouter({ auth, cookieSecure: config.cookieSecure ?? false }));
   const employees = employeesRepository(db);
+  const timeZone = config.timeZone ?? 'UTC';
+  // Before the employees router: `/employees/export.csv` must not reach `/employees/:id`.
+  app.use(
+    '/api',
+    exportRouter({
+      exports: exportService({ employees, clock, timeZone }),
+      requireAuth: requireAuth(auth),
+    }),
+  );
   app.use(
     '/api',
     employeesRouter({
       employees,
-      service: employeesService({ repo: employees, clock, timeZone: config.timeZone ?? 'UTC' }),
+      service: employeesService({ repo: employees, clock, timeZone }),
       requireAuth: requireAuth(auth),
     }),
   );

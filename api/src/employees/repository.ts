@@ -35,7 +35,10 @@ export function escapeLike(text: string): string {
   return text.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
-function whereClause(filters: EmployeeFilters): { sql: string; args: InValue[] } {
+/** The directory's filters and sort, without paging: what the list and the export share. */
+type Selection = Omit<EmployeeFilters, 'page' | 'pageSize'>;
+
+function whereClause(filters: Selection): { sql: string; args: InValue[] } {
   const conditions: string[] = [];
   const args: InValue[] = [];
   if (filters.status !== 'all') {
@@ -156,13 +159,18 @@ function mapWriteError(error: unknown): never {
   throw error;
 }
 
+/** The whitelisted ORDER BY for a sort key, with an id tie-breaker so order is stable. */
+function orderBy(sort: Selection['sort']): string {
+  const descending = sort.startsWith('-');
+  const field = (descending ? sort.slice(1) : sort) as EmployeeSortField;
+  return `ORDER BY ${SORT_SQL[field]} ${descending ? 'DESC' : 'ASC'}, es.id ASC`;
+}
+
 export function employeesRepository(db: Db) {
   return {
     /** One page of the directory and the total count, in a single round trip. */
     async list(filters: EmployeeFilters): Promise<{ items: EmployeeListItem[]; total: number }> {
       const where = whereClause(filters);
-      const descending = filters.sort.startsWith('-');
-      const field = (descending ? filters.sort.slice(1) : filters.sort) as EmployeeSortField;
       const [count, page] = await db.batch(
         [
           { sql: `SELECT count(*) AS n FROM employee_salaries es ${where.sql}`, args: where.args },
@@ -170,7 +178,7 @@ export function employeesRepository(db: Db) {
             sql: `SELECT ${EMPLOYEE_COLUMNS}
                   ${EMPLOYEE_FROM}
                   ${where.sql}
-                  ORDER BY ${SORT_SQL[field]} ${descending ? 'DESC' : 'ASC'}, es.id ASC
+                  ${orderBy(filters.sort)}
                   LIMIT ? OFFSET ?`,
             args: [...where.args, filters.pageSize, (filters.page - 1) * filters.pageSize],
           },
@@ -181,6 +189,16 @@ export function employeesRepository(db: Db) {
         total: Number(count?.rows[0]?.n ?? 0),
         items: (page?.rows ?? []).map(toListItem),
       };
+    },
+
+    /** Every employee matching the directory's filters, in its sort order (the export). */
+    async listAll(filters: Selection): Promise<EmployeeListItem[]> {
+      const where = whereClause(filters);
+      const { rows } = await db.execute({
+        sql: `SELECT ${EMPLOYEE_COLUMNS} ${EMPLOYEE_FROM} ${where.sql} ${orderBy(filters.sort)}`,
+        args: where.args,
+      });
+      return rows.map(toListItem);
     },
 
     /** One employee with their salary history (newest first), or null. One round trip. */

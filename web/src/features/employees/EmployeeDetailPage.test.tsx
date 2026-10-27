@@ -166,6 +166,9 @@ describe('employee detail', () => {
     const breadcrumb = within(await screen.findByRole('navigation', { name: 'Breadcrumb' }));
     await user.click(breadcrumb.getByRole('link', { name: 'Employees' }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/employees'));
+    // Waiting for the lazy directory page to render lets the navigation finish inside the
+    // test; otherwise it can settle after the test environment is gone.
+    expect(await screen.findByRole('heading', { name: 'Employees' })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/employees');
   });
 });

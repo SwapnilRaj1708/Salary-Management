@@ -29,7 +29,7 @@ Estimates are focused hours.
 | **S6 Directory** ⭐ ✅ | Query builder, list endpoint, employee directory on MUI X Data Grid in server mode (lazy-loaded route), with filters, search, sort and paging in the URL. **First demoable deploy.** | LIKE wildcards escaped; unknown sort → 400; USD sort orders mixed currencies; stable pages; default status = active | 3 h |
 | **S7 Records** ✅ | Detail with history, create, edit, salary change, mark as left (API and UI) | Each rule in architecture §8; salary change is atomic; triggers reject an out-of-order change and a change for a leaver even when the service check is skipped; leavers read-only; duplicate email → 409 | 3.5 h |
 | **S8 Insights** ✅ | `percentile` and `histogram` (pure), 4 endpoints, Insights page (MUI tables, MUI X Charts bar charts, lazy-loaded route) | Excel fixtures (`[1,2,10]` → P90 = 8.4; median of an even count); nice bucket widths with empty bins kept; exact numbers on a hand-built fixture; leavers excluded | 3 h |
-| **S9 Export** | CSV escaping and the export endpoint and button | Quoting, formula-injection prefix, numbers left raw, BOM, filters respected | 1 h |
+| **S9 Export** ✅ | CSV escaping and the export endpoint and button | Quoting, formula-injection prefix, numbers left raw, BOM, filters respected | 1 h |
 | **S10 Ship** | README; performance numbers measured on the deployed app (cold start, login time, list and insights p95); AI log; demo video; tag `v1.0.0` | – | 2.5 h |
 
 **Total: about 25 hours.** That is about three and a half focused days, with

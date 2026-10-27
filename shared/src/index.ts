@@ -5,6 +5,7 @@ export {
   CurrencyCodeSchema,
   EMPLOYEE_SORT_FIELDS,
   EmployeeDetail,
+  EmployeeExportQuery,
   EmployeeFilters,
   EmployeeListItem,
   EmployeeListQuery,
@@ -38,6 +39,7 @@ export {
   PERCENTILE_KEYS,
 } from './contracts/insights.ts';
 export {
+  amountAsDecimal,
   formatMoney,
   type Money,
   type ParseMoneyError,

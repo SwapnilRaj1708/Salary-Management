@@ -39,6 +39,23 @@ export function parseMoney(input: string, minorUnit: MinorUnit): ParseMoneyResul
 }
 
 /**
+ * The amount in major units as a plain decimal, such as "90000.50" or "9000000" for JPY,
+ * built from the digits so large amounts keep every minor unit.
+ */
+export function amountAsDecimal({ amountMinor, currency }: Money): string {
+  if (!Number.isSafeInteger(amountMinor)) {
+    throw new RangeError(`amountMinor must be a safe integer, got ${amountMinor}`);
+  }
+  const { minorUnit } = CURRENCIES[currency];
+  const digits = Math.abs(amountMinor)
+    .toString()
+    .padStart(minorUnit + 1, '0');
+  const whole = digits.slice(0, digits.length - minorUnit);
+  const fraction = digits.slice(digits.length - minorUnit);
+  return `${amountMinor < 0 ? '-' : ''}${whole}${minorUnit > 0 ? `.${fraction}` : ''}`;
+}
+
+/**
  * Writes an amount for display, with the decimals from our currency table. Intl gets an
  * exact decimal string, never `amountMinor / 100`: dividing loses cents on large amounts.
  * `compact` gives short chart labels such as "$120K" or "₹25L".
@@ -47,16 +64,8 @@ export function formatMoney(
   { amountMinor, currency }: Money,
   { compact = false }: { compact?: boolean } = {},
 ): string {
-  if (!Number.isSafeInteger(amountMinor)) {
-    throw new RangeError(`amountMinor must be a safe integer, got ${amountMinor}`);
-  }
   const { minorUnit, locale } = CURRENCIES[currency];
-  const digits = Math.abs(amountMinor)
-    .toString()
-    .padStart(minorUnit + 1, '0');
-  const whole = digits.slice(0, digits.length - minorUnit);
-  const fraction = digits.slice(digits.length - minorUnit);
-  const decimal = `${amountMinor < 0 ? '-' : ''}${whole}${minorUnit > 0 ? `.${fraction}` : ''}`;
+  const decimal = amountAsDecimal({ amountMinor, currency });
 
   return new Intl.NumberFormat(locale, {
     style: 'currency',

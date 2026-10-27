@@ -113,6 +113,21 @@ describe('employee directory', () => {
     expect(router.state.location.pathname).toBe('/employees/2');
   });
 
+  it('exports exactly the filtered, sorted list, without paging', async () => {
+    renderApp('/employees?country=JP&sort=-salaryUsd&page=2');
+
+    const link = await screen.findByRole('link', { name: 'Export CSV' });
+    const url = new URL(link.getAttribute('href') ?? '', 'http://test');
+
+    expect(url.pathname).toBe('/api/employees/export.csv');
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      country: 'JP',
+      status: 'active',
+      sort: '-salaryUsd',
+    });
+    expect(link).toHaveAttribute('download');
+  });
+
   it('goes to the new-employee form from Add employee', async () => {
     const user = userEvent.setup();
     const { router } = renderApp('/employees');

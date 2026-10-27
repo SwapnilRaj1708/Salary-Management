@@ -66,6 +66,10 @@ export type EmployeeFilters = z.infer<typeof EmployeeFilters>;
 /** Query string of `GET /api/employees`. Strict, like every request schema. */
 export const EmployeeListQuery = EmployeeFilters.strict();
 
+/** Query of `GET /api/employees/export.csv`: the directory's filters and sort, no paging. */
+export const EmployeeExportQuery = EmployeeFilters.omit({ page: true, pageSize: true }).strict();
+export type EmployeeExportQuery = z.infer<typeof EmployeeExportQuery>;
+
 export const EmployeeListItem = z.object({
   id: z.number().int().positive(),
   employeeCode: z.string(),
