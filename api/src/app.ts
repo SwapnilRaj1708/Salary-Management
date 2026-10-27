@@ -14,6 +14,7 @@ import { exportService } from './export/service.ts';
 import { errorHandler } from './http/errors.ts';
 import { healthRouter } from './http/health.ts';
 import { requireAuth } from './http/requireAuth.ts';
+import { serverTiming } from './http/serverTiming.ts';
 import { insightsRepository } from './insights/repository.ts';
 import { insightsRouter } from './insights/routes.ts';
 import { insightsService } from './insights/service.ts';
@@ -59,6 +60,7 @@ export function buildApp({
     if (admin) await auth.ensureHrUser(admin, passwordParams);
   });
 
+  app.use('/api', serverTiming(clock));
   app.use('/api', async (_req, res, next) => {
     res.set('Cache-Control', 'no-store');
     // A function has no boot step, so the first request on an instance prepares the
