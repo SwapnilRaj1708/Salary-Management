@@ -25,6 +25,7 @@ export type Config = {
   database: DbConfig;
   admin: { email: string; password: string };
   cookieSecure: boolean;
+  timeZone?: string;
 };
 
 /** Without a configured database, local runs use this file (relative to the api folder). */

@@ -19,6 +19,8 @@ export type AppDeps = {
     cookieSecure?: boolean;
     /** The HR user to create at startup if no user has this email. */
     admin?: { email: string; password: string };
+    /** The IANA time zone that decides what "today" is (decision X3). */
+    timeZone?: string;
   };
   db: Db;
   clock?: Clock;

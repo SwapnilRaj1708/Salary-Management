@@ -5,6 +5,7 @@ import type {
   EmployeeFilters,
   EmployeeListItem,
   EmployeeSortField,
+  SalaryReason,
 } from '@salary/shared';
 import type { Db } from '../db/client.ts';
 
@@ -104,6 +105,18 @@ export function employeesRepository(db: Db) {
       };
     },
 
+    async create(_employee: NewEmployee): Promise<number> {
+      throw new Error('Not implemented');
+    },
+
+    async addSalaryChange(_change: NewSalaryChange): Promise<void> {
+      throw new Error('Not implemented');
+    },
+
+    async markLeft(_id: number, _leftOn: string): Promise<void> {
+      throw new Error('Not implemented');
+    },
+
     async referenceData() {
       const [departments, jobTitles] = await db.batch(
         [
@@ -121,5 +134,27 @@ export function employeesRepository(db: Db) {
     },
   };
 }
+
+export type NewEmployee = {
+  fullName: string;
+  email: string;
+  jobTitleId: number;
+  departmentId: number;
+  countryCode: CountryCode;
+  hireDate: string;
+  salaryMinor: number;
+  currency: CurrencyCode;
+  changedBy: number | null;
+};
+
+export type NewSalaryChange = {
+  employeeId: number;
+  amountMinor: number;
+  currency: CurrencyCode;
+  effectiveDate: string;
+  reason: SalaryReason;
+  note: string | null;
+  changedBy: number | null;
+};
 
 export type EmployeesRepository = ReturnType<typeof employeesRepository>;
