@@ -119,4 +119,16 @@ describe('formatMoney', () => {
   it('refuses a fractional minor amount, which would hide a rounding bug', () => {
     expect(() => formatMoney({ amountMinor: 100.5, currency: 'USD' })).toThrow(RangeError);
   });
+
+  it('writes a short form for chart labels when asked', () => {
+    expect(formatMoney({ amountMinor: 12_000_000, currency: 'USD' }, { compact: true })).toBe(
+      '$120K',
+    );
+    expect(formatMoney({ amountMinor: 9_500_000, currency: 'JPY' }, { compact: true })).toBe(
+      '¥9.5M',
+    );
+    expect(formatMoney({ amountMinor: 250_000_000, currency: 'INR' }, { compact: true })).toBe(
+      '₹25L',
+    );
+  });
 });

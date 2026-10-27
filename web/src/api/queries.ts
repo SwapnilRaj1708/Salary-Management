@@ -1,6 +1,11 @@
 import {
   type AuthUser,
+  ByCountryResponse,
+  ByDepartmentResponse,
+  ByJobTitleResponse,
+  type CountryCode,
   type CreateEmployeeRequest,
+  DistributionResponse,
   EmployeeDetail,
   type EmployeeFilters,
   EmployeeListResponse,
@@ -113,8 +118,8 @@ export const employeeQuery = (id: number) =>
   });
 
 /**
- * After a write, the detail cache takes the response and every directory page is marked
- * stale, so the list shows the change the next time it is seen.
+ * After a write, the detail cache takes the response, and every directory page and
+ * insight is marked stale, so they show the change the next time they are seen.
  */
 function useEmployeeWrite<Input>(write: (input: Input) => Promise<EmployeeDetail>) {
   const queryClient = useQueryClient();
@@ -123,6 +128,7 @@ function useEmployeeWrite<Input>(write: (input: Input) => Promise<EmployeeDetail
     onSuccess: (employee) => {
       queryClient.setQueryData(employeeQuery(employee.id).queryKey, employee);
       void queryClient.invalidateQueries({ queryKey: ['employees'] });
+      void queryClient.invalidateQueries({ queryKey: ['insights'] });
     },
   });
 }
@@ -146,6 +152,40 @@ export const useMarkLeft = (id: number) =>
   useEmployeeWrite((body: LeaveRequest) =>
     api(`/employees/${id}/leave`, EmployeeDetail, { method: 'POST', body }),
   );
+
+// Insights change only when someone saves a record, so a minute of staleness is fine.
+const INSIGHTS_STALE_MS = 60_000;
+
+export const useInsightsByCountry = () =>
+  useQuery({
+    queryKey: ['insights', 'by-country'],
+    queryFn: () => api('/insights/by-country', ByCountryResponse),
+    staleTime: INSIGHTS_STALE_MS,
+  });
+
+export const useInsightsByJobTitle = (country: CountryCode | undefined) =>
+  useQuery({
+    queryKey: ['insights', 'by-job-title', country ?? null],
+    queryFn: () =>
+      api(`/insights/by-job-title${country ? `?country=${country}` : ''}`, ByJobTitleResponse),
+    staleTime: INSIGHTS_STALE_MS,
+    placeholderData: keepPreviousData,
+  });
+
+export const useInsightsByDepartment = () =>
+  useQuery({
+    queryKey: ['insights', 'by-department'],
+    queryFn: () => api('/insights/by-department', ByDepartmentResponse),
+    staleTime: INSIGHTS_STALE_MS,
+  });
+
+export const useDistribution = (country: CountryCode) =>
+  useQuery({
+    queryKey: ['insights', 'distribution', country],
+    queryFn: () => api(`/insights/distribution?country=${country}`, DistributionResponse),
+    staleTime: INSIGHTS_STALE_MS,
+    placeholderData: keepPreviousData,
+  });
 
 function toQueryString(filters: EmployeeFilters): string {
   const params = new URLSearchParams();

@@ -26,6 +26,18 @@ export {
 } from './contracts/employees.ts';
 export { HealthResponse } from './contracts/health.ts';
 export {
+  ByCountryResponse,
+  ByDepartmentResponse,
+  ByJobTitleQuery,
+  ByJobTitleResponse,
+  CountryInsight,
+  DepartmentInsight,
+  DistributionQuery,
+  DistributionResponse,
+  JobTitleInsight,
+  PERCENTILE_KEYS,
+} from './contracts/insights.ts';
+export {
   formatMoney,
   type Money,
   type ParseMoneyError,

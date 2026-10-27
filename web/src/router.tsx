@@ -15,7 +15,7 @@ import { AppShell } from './app/AppShell.tsx';
 import { pageTransitionTypes } from './app/pageTransition.ts';
 import { LoginPage, safeRedirect } from './features/auth/LoginPage.tsx';
 import { DIRECTORY_DEFAULTS, DirectorySearch } from './features/employees/search.ts';
-import { InsightsPage } from './features/insights/InsightsPage.tsx';
+import { INSIGHTS_DEFAULTS, InsightsSearch } from './features/insights/search.ts';
 
 export type RouterContext = { queryClient: QueryClient };
 
@@ -98,7 +98,13 @@ const employeeRoute = createRoute({
 const insightsRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: '/insights',
-  component: InsightsPage,
+  validateSearch: InsightsSearch,
+  search: { middlewares: [stripSearchParams(INSIGHTS_DEFAULTS)] },
+  // Lazy-loaded: X Charts is the second-heaviest part of the bundle (decision D7).
+  component: lazyRouteComponent(
+    () => import('./features/insights/InsightsPage.tsx'),
+    'InsightsPage',
+  ),
 });
 
 const routeTree = rootRoute.addChildren([
