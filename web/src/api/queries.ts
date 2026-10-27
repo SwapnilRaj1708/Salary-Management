@@ -1,10 +1,19 @@
-import { type AuthUser, type LoginRequest, MeResponse } from '@salary/shared';
 import {
+  type AuthUser,
+  type EmployeeFilters,
+  EmployeeListResponse,
+  type LoginRequest,
+  MeResponse,
+  ReferenceDataResponse,
+} from '@salary/shared';
+import {
+  keepPreviousData,
   MutationCache,
   QueryCache,
   QueryClient,
   queryOptions,
   useMutation,
+  useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
 import { api, apiNoContent, isUnauthenticated } from './client.ts';
@@ -71,4 +80,30 @@ export function useLogout() {
       queryClient.setQueryData(meQuery.queryKey, null);
     },
   });
+}
+
+/** One page of the directory. While the next page loads, the previous one stays on screen. */
+export function useEmployees(filters: EmployeeFilters) {
+  return useQuery({
+    queryKey: ['employees', filters],
+    queryFn: () => api(`/employees?${toQueryString(filters)}`, EmployeeListResponse),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Departments and job titles for filters and forms. They change only with a deploy. */
+export function useReferenceData() {
+  return useQuery({
+    queryKey: ['reference-data'],
+    queryFn: () => api('/reference-data', ReferenceDataResponse),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
+function toQueryString(filters: EmployeeFilters): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== '') params.set(key, String(value));
+  }
+  return params.toString();
 }

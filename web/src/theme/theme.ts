@@ -1,4 +1,5 @@
 import { createTheme, type Theme } from '@mui/material/styles';
+import type {} from '@mui/x-data-grid/themeAugmentation';
 
 // Two Material 3 easings for our own enter/exit motion (docs/design-system.md §4).
 declare module '@mui/material/styles' {
@@ -42,6 +43,10 @@ export function createAppTheme({
       MuiButton: { defaultProps: { disableElevation: true, loadingPosition: 'start' } },
       MuiTextField: { defaultProps: { size: 'small' } },
       MuiTableCell: { styleOverrides: { root: { fontVariantNumeric: 'tabular-nums' } } },
+      MuiDataGrid: {
+        defaultProps: { disableRowSelectionOnClick: true },
+        styleOverrides: { root: { fontVariantNumeric: 'tabular-nums' } },
+      },
     },
   });
 }
