@@ -39,10 +39,18 @@ export function testApp({
   return { app, db };
 }
 
-/** A supertest agent that has signed in as the test HR user and keeps the session cookie. */
+/**
+ * A supertest agent that has signed in as the test HR user and sends the session cookie
+ * with every request.
+ *
+ * The cookie goes in an explicit header instead of the agent's cookie jar. The session's
+ * expiry comes from the test clock, but the jar compares it with the real time, so a jar
+ * would drop the cookie once the real time passed the test clock's expiry.
+ */
 export async function signedInAgent(app: ReturnType<typeof testApp>['app']) {
-  const agent = request.agent(app);
-  const res = await agent.post('/api/auth/login').send(TEST_HR);
+  const res = await request(app).post('/api/auth/login').send(TEST_HR);
   if (res.status !== 200) throw new Error(`test login failed with ${res.status}`);
-  return agent;
+  const sid = [res.headers['set-cookie'] ?? []].flat().find((c) => c.startsWith('sid='));
+  if (!sid) throw new Error('test login set no session cookie');
+  return request.agent(app).set('Cookie', sid.split(';')[0] as string);
 }
