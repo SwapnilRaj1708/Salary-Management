@@ -39,3 +39,13 @@ export function fromEpochDay(epochDay: number): IsoDate {
 export function addDays(date: IsoDate, days: number): IsoDate {
   return fromEpochDay(toEpochDay(date) + days);
 }
+
+/** The calendar date at `instant` (epoch ms) in an IANA time zone (decision X3). */
+export function todayIn(_instant: number, _timeZone: string): IsoDate {
+  throw new Error('Not implemented');
+}
+
+/** Whether `name` is an IANA time zone this runtime knows. */
+export function isTimeZone(_name: string): boolean {
+  throw new Error('Not implemented');
+}
