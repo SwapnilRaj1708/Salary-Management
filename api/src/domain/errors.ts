@@ -34,3 +34,40 @@ export class InvalidCredentialsError extends DomainError {
     super(401, 'INVALID_CREDENTIALS', 'Unauthorized', 'The email or password is incorrect.');
   }
 }
+
+export class NotFoundError extends DomainError {
+  constructor(detail: string) {
+    super(404, 'NOT_FOUND', 'Not Found', detail);
+  }
+}
+
+/** A request that conflicts with the stored state, such as a taken email (409). */
+export class ConflictError extends DomainError {
+  constructor(
+    code:
+      | 'EMAIL_TAKEN'
+      | 'EMPLOYEE_LEFT'
+      | 'SALARY_UNCHANGED'
+      | 'EFFECTIVE_DATE_BEFORE_LATEST_CHANGE',
+    detail: string,
+  ) {
+    super(409, code, 'Conflict', detail);
+  }
+}
+
+/** A hire date, effective date or leaving date outside its allowed range. */
+export class DateOutOfRangeError extends DomainError {
+  constructor(detail: string) {
+    super(400, 'DATE_OUT_OF_RANGE', 'Date out of range', detail);
+  }
+}
+
+/** A department or job title id that does not exist. */
+export class UnknownReferenceError extends DomainError {
+  constructor(detail: string) {
+    super(400, 'UNKNOWN_REFERENCE', 'Unknown reference', detail);
+  }
+}
+
+export const employeeLeft = () =>
+  new ConflictError('EMPLOYEE_LEFT', 'This employee has left, so their record is read-only.');
