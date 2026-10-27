@@ -41,10 +41,11 @@ export function parseMoney(input: string, minorUnit: MinorUnit): ParseMoneyResul
 /**
  * Writes an amount for display, with the decimals from our currency table. Intl gets an
  * exact decimal string, never `amountMinor / 100`: dividing loses cents on large amounts.
+ * `compact` gives short chart labels such as "$120K" or "₹25L".
  */
 export function formatMoney(
   { amountMinor, currency }: Money,
-  _options: { compact?: boolean } = {},
+  { compact = false }: { compact?: boolean } = {},
 ): string {
   if (!Number.isSafeInteger(amountMinor)) {
     throw new RangeError(`amountMinor must be a safe integer, got ${amountMinor}`);
@@ -60,7 +61,8 @@ export function formatMoney(
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
-    minimumFractionDigits: minorUnit,
-    maximumFractionDigits: minorUnit,
+    ...(compact
+      ? { notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 1 }
+      : { minimumFractionDigits: minorUnit, maximumFractionDigits: minorUnit }),
   }).format(decimal as Intl.StringNumericLiteral);
 }
