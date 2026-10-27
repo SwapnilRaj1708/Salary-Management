@@ -21,6 +21,7 @@ import { getRouteApi } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { ApiError } from '../../api/client.ts';
 import { employeeQuery } from '../../api/queries.ts';
+import { formatUsd } from '../../app/formatUsd.ts';
 import { TextLink } from '../../app/TextLink.tsx';
 import { useToast } from '../../app/Toasts.tsx';
 import { highlightFadeMs } from '../../theme/theme.ts';
@@ -32,9 +33,6 @@ import { SalaryChangeDialog } from './SalaryChangeDialog.tsx';
 const route = getRouteApi('/signed-in/employees/$employeeId');
 
 type OpenDialog = 'edit' | 'salary' | 'leave' | null;
-
-const usd = (amount: number) =>
-  formatMoney({ amountMinor: Math.round(amount * 100), currency: 'USD' });
 
 export function EmployeeDetailPage() {
   const { employeeId } = route.useParams();
@@ -129,7 +127,7 @@ export function EmployeeDetailPage() {
                 {formatMoney(employee.salary)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {usd(employee.salaryUsd)} at the {query.data.fx.asOf} rate
+                {formatUsd(employee.salaryUsd)} at the {query.data.fx.asOf} rate
               </Typography>
             </Field>
             <Field label="Email">{employee.email}</Field>

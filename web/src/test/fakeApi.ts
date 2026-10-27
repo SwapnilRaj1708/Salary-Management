@@ -52,6 +52,12 @@ export function installFakeApi({ signedIn = true } = {}) {
       if (!state.signedIn) return problem(401, 'UNAUTHENTICATED');
       return json(200, listEmployees(new URL(input, 'http://test').searchParams));
     }
+    if (method === 'GET' && input.startsWith('/api/insights/')) {
+      if (!state.signedIn) return problem(401, 'UNAUTHENTICATED');
+      const url = new URL(input, 'http://test');
+      const body = insights(url.pathname, url.searchParams.get('country'));
+      return body ? json(200, body) : problem(404, 'NOT_FOUND');
+    }
     if (method === 'GET' && input === '/api/reference-data') {
       if (!state.signedIn) return problem(401, 'UNAUTHENTICATED');
       return json(200, {
@@ -281,4 +287,180 @@ function listEmployees(params: URLSearchParams) {
     total: matches.length,
     fx: { asOf: '2026-10-01' },
   };
+}
+
+const usd = (amountMinor: number) => ({ amountMinor, currency: 'USD' });
+const jpy = (amountMinor: number) => ({ amountMinor, currency: 'JPY' });
+const inr = (amountMinor: number) => ({ amountMinor, currency: 'INR' });
+const FX = { asOf: '2026-10-01' };
+
+/** Fixed insight responses: the same six people the API's insights tests use. */
+function insights(path: string, country: string | null): unknown {
+  switch (path) {
+    case '/api/insights/by-country':
+      return {
+        items: [
+          {
+            country: 'IN',
+            currency: 'INR',
+            headcount: 1,
+            min: inr(176_000_000),
+            median: inr(176_000_000),
+            avg: inr(176_000_000),
+            max: inr(176_000_000),
+            avgUsd: 20_000,
+            payrollUsd: 20_000,
+          },
+          {
+            country: 'JP',
+            currency: 'JPY',
+            headcount: 2,
+            min: jpy(9_000_000),
+            median: jpy(10_500_000),
+            avg: jpy(10_500_000),
+            max: jpy(12_000_000),
+            avgUsd: 70_000,
+            payrollUsd: 140_000,
+          },
+          {
+            country: 'US',
+            currency: 'USD',
+            headcount: 3,
+            min: usd(9_000_000),
+            median: usd(10_000_000),
+            avg: usd(10_333_333),
+            max: usd(12_000_000),
+            avgUsd: 103_333.33,
+            payrollUsd: 310_000,
+          },
+        ],
+        fx: FX,
+      };
+    case '/api/insights/by-department':
+      return {
+        items: [
+          {
+            departmentId: 1,
+            department: 'Engineering',
+            headcount: 4,
+            payrollUsd: 330_000,
+            avgUsd: 82_500,
+            share: 0.7021,
+          },
+          {
+            departmentId: 4,
+            department: 'Data',
+            headcount: 1,
+            payrollUsd: 120_000,
+            avgUsd: 120_000,
+            share: 0.2553,
+          },
+          {
+            departmentId: 5,
+            department: 'Sales',
+            headcount: 1,
+            payrollUsd: 20_000,
+            avgUsd: 20_000,
+            share: 0.0426,
+          },
+        ],
+        totalUsd: 470_000,
+        fx: FX,
+      };
+    case '/api/insights/by-job-title':
+      return country === 'US'
+        ? {
+            country: 'US',
+            items: [
+              {
+                jobTitleId: 13,
+                jobTitle: 'Data Scientist',
+                headcount: 1,
+                countries: 1,
+                avgUsd: 120_000,
+                local: { min: usd(12_000_000), avg: usd(12_000_000), max: usd(12_000_000) },
+              },
+              {
+                jobTitleId: 2,
+                jobTitle: 'Software Engineer',
+                headcount: 2,
+                countries: 1,
+                avgUsd: 95_000,
+                local: { min: usd(9_000_000), avg: usd(9_500_000), max: usd(10_000_000) },
+              },
+            ],
+            fx: FX,
+          }
+        : {
+            country: null,
+            items: [
+              {
+                jobTitleId: 13,
+                jobTitle: 'Data Scientist',
+                headcount: 1,
+                countries: 1,
+                avgUsd: 120_000,
+              },
+              {
+                jobTitleId: 3,
+                jobTitle: 'Senior Software Engineer',
+                headcount: 1,
+                countries: 1,
+                avgUsd: 80_000,
+              },
+              {
+                jobTitleId: 2,
+                jobTitle: 'Software Engineer',
+                headcount: 4,
+                countries: 3,
+                avgUsd: 67_500,
+              },
+            ],
+            fx: FX,
+          };
+    case '/api/insights/distribution':
+      if (country === 'US') {
+        return {
+          country: 'US',
+          currency: 'USD',
+          headcount: 3,
+          percentiles: {
+            p10: usd(9_200_000),
+            p25: usd(9_500_000),
+            p50: usd(10_000_000),
+            p75: usd(11_000_000),
+            p90: usd(11_600_000),
+          },
+          buckets: [
+            { fromMinor: 9_000_000, toMinor: 10_000_000, count: 1 },
+            { fromMinor: 10_000_000, toMinor: 11_000_000, count: 1 },
+            { fromMinor: 11_000_000, toMinor: 12_000_000, count: 0 },
+            { fromMinor: 12_000_000, toMinor: 13_000_000, count: 1 },
+          ],
+        };
+      }
+      if (country === 'JP') {
+        return {
+          country: 'JP',
+          currency: 'JPY',
+          headcount: 2,
+          percentiles: {
+            p10: jpy(9_300_000),
+            p25: jpy(9_750_000),
+            p50: jpy(10_500_000),
+            p75: jpy(11_250_000),
+            p90: jpy(11_700_000),
+          },
+          buckets: [
+            { fromMinor: 9_000_000, toMinor: 10_000_000, count: 1 },
+            { fromMinor: 10_000_000, toMinor: 11_000_000, count: 0 },
+            { fromMinor: 11_000_000, toMinor: 12_000_000, count: 0 },
+            { fromMinor: 12_000_000, toMinor: 13_000_000, count: 1 },
+          ],
+        };
+      }
+      return { country, currency: 'EUR', headcount: 0, percentiles: null, buckets: [] };
+    default:
+      return undefined;
+  }
 }

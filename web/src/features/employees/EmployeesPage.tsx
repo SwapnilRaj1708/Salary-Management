@@ -28,6 +28,7 @@ import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useEmployees, useReferenceData } from '../../api/queries.ts';
 import { ButtonLink } from '../../app/ButtonLink.tsx';
+import { formatUsd } from '../../app/formatUsd.ts';
 import { TextLink } from '../../app/TextLink.tsx';
 import { useDelayedFlag } from '../../app/useDelayedFlag.ts';
 import { DIRECTORY_DEFAULTS, type DirectorySearch } from './search.ts';
@@ -49,9 +50,6 @@ const SORT_FIELDS: Partial<Record<string, EmployeeSortField>> = {
   hireDate: 'hireDate',
   salaryUsd: 'salaryUsd',
 };
-
-const usd = (amount: number) =>
-  formatMoney({ amountMinor: Math.round(amount * 100), currency: 'USD' });
 
 const COLUMNS: GridColDef<EmployeeListItem>[] = [
   {
@@ -116,7 +114,7 @@ const COLUMNS: GridColDef<EmployeeListItem>[] = [
     minWidth: 130,
     align: 'right',
     headerAlign: 'right',
-    valueGetter: (_value, row) => usd(row.salaryUsd),
+    valueGetter: (_value, row) => formatUsd(row.salaryUsd),
   },
 ];
 
