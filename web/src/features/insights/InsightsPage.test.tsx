@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderApp } from '../../test/render.tsx';
 
 const section = async (name: string) => within(await screen.findByRole('region', { name }));
@@ -113,6 +113,20 @@ describe('insights', () => {
 
     expect(await distribution.findByText('¥10,500,000')).toBeVisible();
     expect(router.state.location.search).toMatchObject({ distributionCountry: 'JP' });
+  });
+
+  it('keeps the reader where they are when a country is chosen further down the page', async () => {
+    const scrolls = vi.spyOn(window, 'scrollTo');
+    renderApp('/insights');
+    const distribution = await section('Pay distribution');
+    await distribution.findByText('$100,000.00');
+    scrolls.mockClear();
+
+    await choose(distribution, 'Japan');
+
+    expect(await distribution.findByText('¥10,500,000')).toBeVisible();
+    expect(scrolls).not.toHaveBeenCalled();
+    scrolls.mockRestore();
   });
 
   it('says so when a country has no active employees', async () => {
