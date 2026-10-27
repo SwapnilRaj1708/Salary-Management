@@ -481,6 +481,10 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
     Two instances racing to apply the same migration can't both succeed: the loser fails
     on the key at once, its whole batch rolls back, and it re-reads the list.
   - Tests cover a repeat run, two runs at once, and a migration that fails part-way.
+  - On both Turso databases, `npm run db:check` confirmed what the tests can only show on
+    a local file: foreign keys are enforced, a failing batch rolls back, two writers at
+    once both succeed, and constraint errors carry `SQLITE_CONSTRAINT` with the constraint
+    name (as "SQLite error: UNIQUE constraint failed: …") *(verified 27 Oct)*.
 - **Migrations stay backward-compatible:** expand first, contract in a later deploy.
   Requests to the previous deployment can still arrive after a new one has migrated.
 - **Seeding is a command, not part of startup.** `npm run seed -- --reset` writes the
@@ -533,8 +537,8 @@ for a single HR role, not HTTP Basic, which has no logout and uses the browser's
 - p95 under 300 ms for list and insights on the deployed app with 10,000 employees,
   measured on a warm instance.
 - Seeding 10,000 employees in under 2 seconds locally: 0.8 s for 10,000 employees and
-  46,408 salary changes into a local file (S4). The time to seed Turso over the network is
-  printed by the Database workflow.
+  46,408 salary changes into a local file (S4). Over the network from GitHub Actions to
+  Turso in `aws-us-east-1`, the same seed took 11.0 s (preview) and 4.9 s (production).
 
 Every query is a network round trip from the function to Turso. Both sit in the same AWS
 region, so a round trip takes a few milliseconds, but latency now depends more on the
