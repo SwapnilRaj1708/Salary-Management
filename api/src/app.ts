@@ -6,8 +6,11 @@ import { authService } from './auth/service.ts';
 import type { Db } from './db/client.ts';
 import { onceUntilSuccess, prepareDatabase } from './db/prepare.ts';
 import type { Clock } from './domain/clock.ts';
+import { employeesRepository } from './employees/repository.ts';
+import { employeesRouter } from './employees/routes.ts';
 import { errorHandler } from './http/errors.ts';
 import { healthRouter } from './http/health.ts';
+import { requireAuth } from './http/requireAuth.ts';
 
 export type AppDeps = {
   config: {
@@ -58,6 +61,10 @@ export function buildApp({
   app.use('/api', express.json({ limit: '100kb' }));
   app.use('/api', healthRouter({ version: config.version, db }));
   app.use('/api', authRouter({ auth, cookieSecure: config.cookieSecure ?? false }));
+  app.use(
+    '/api',
+    employeesRouter({ employees: employeesRepository(db), requireAuth: requireAuth(auth) }),
+  );
 
   // Requests routed into the API never fall back to the web app, so unknown API
   // routes get problem+json like every other API error.
