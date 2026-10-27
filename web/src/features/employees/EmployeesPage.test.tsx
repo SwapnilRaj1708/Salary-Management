@@ -63,8 +63,10 @@ describe('employee directory', () => {
   it('pages through the directory with the page in the URL', async () => {
     const user = userEvent.setup();
     const { router } = renderApp('/employees');
+    // The button stays disabled until the first page and its total have arrived.
+    await (await grid()).findByText('Ada Lovelace');
 
-    await user.click(await screen.findByRole('button', { name: /next page/i }));
+    await user.click(screen.getByRole('button', { name: /next page/i }));
 
     await waitFor(() => expect(router.state.location.search).toEqual({ page: 2 }));
     expect(await (await grid()).findByText('Person 27')).toBeVisible();
