@@ -574,11 +574,13 @@ Every query is a network round trip from the function to Turso. Both sit in the 
 region, so a round trip takes a few milliseconds, but latency now depends more on the
 number of round trips than on SQL time. A request that needs several reads, such as a
 page and its total count, sends them as one batch. A new function instance adds its cold
-start and the startup check (§10). Measured numbers, from the real code on the deployed
-app, will be recorded in `docs/performance.md`: the skeleton's cold start in S2, the rest
-in S10. If insights miss the target, the first step is fewer round trips. Caching comes
-after that, keyed on a counter that every write increments, because function instances
-don't share memory.
+start and the startup check (§10). Every API response carries
+`Server-Timing: app;dur=<ms>`, plus `cold` on an instance's first request, so a
+measurement from outside can tell app time from network time. Measured numbers are in
+[performance.md](performance.md), taken with `npm run measure` and the Performance
+workflow (S10). If insights miss the target, the first step is fewer round trips. Caching
+comes after that, keyed on a counter that every write increments, because function
+instances don't share memory.
 
 **At 10,000 rows:**
 - Every query is a full scan or close to one, which is still cheap at this size. No
