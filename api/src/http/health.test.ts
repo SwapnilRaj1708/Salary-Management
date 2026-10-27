@@ -5,7 +5,7 @@ import { testApp } from '../test/app.ts';
 
 describe('GET /api/health', () => {
   it('reports ok with the deployed version and the API contract version', async () => {
-    const { app } = testApp('abc1234');
+    const { app } = testApp({ version: 'abc1234' });
 
     const res = await request(app).get('/api/health');
 
@@ -15,7 +15,7 @@ describe('GET /api/health', () => {
   });
 
   it('tells every cache not to store the response', async () => {
-    const { app } = testApp('abc1234');
+    const { app } = testApp({ version: 'abc1234' });
 
     const res = await request(app).get('/api/health');
 

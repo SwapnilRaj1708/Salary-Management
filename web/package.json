@@ -15,9 +15,11 @@
     "@emotion/styled": "11.14.1",
     "@mui/material": "9.5.0",
     "@salary/shared": "0.0.0",
+    "@tanstack/react-query": "5.104.2",
     "@tanstack/react-router": "1.170.45",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@testing-library/dom": "10.4.2",

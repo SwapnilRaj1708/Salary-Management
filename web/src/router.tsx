@@ -1,19 +1,55 @@
+import type { QueryClient } from '@tanstack/react-query';
 import {
-  createRootRoute,
+  createRootRouteWithContext,
   createRoute,
   createRouter,
+  Outlet,
   type RouterHistory,
   redirect,
 } from '@tanstack/react-router';
+import { z } from 'zod';
+import { meQuery } from './api/queries.ts';
 import { AppShell } from './app/AppShell.tsx';
 import { pageTransitionTypes } from './app/pageTransition.ts';
+import { LoginPage, safeRedirect } from './features/auth/LoginPage.tsx';
 import { EmployeesPage } from './features/employees/EmployeesPage.tsx';
 import { InsightsPage } from './features/insights/InsightsPage.tsx';
 
-const rootRoute = createRootRoute({ component: AppShell });
+export type RouterContext = { queryClient: QueryClient };
+
+const rootRoute = createRootRouteWithContext<RouterContext>()({ component: Outlet });
+
+// A bad or missing redirect param falls back to the default instead of an error page.
+const LoginSearch = z.object({ redirect: z.string().optional().catch(undefined) });
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/login',
+  validateSearch: LoginSearch,
+  beforeLoad: async ({ context, search }) => {
+    if (await context.queryClient.ensureQueryData(meQuery)) {
+      throw redirect({ href: safeRedirect(search.redirect) });
+    }
+  },
+  component: function Login() {
+    return <LoginPage redirect={loginRoute.useSearch().redirect} />;
+  },
+});
+
+/** Every page except login sits under this layout, which requires a signed-in user. */
+const signedInRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'signed-in',
+  beforeLoad: async ({ context, location }) => {
+    if (!(await context.queryClient.ensureQueryData(meQuery))) {
+      throw redirect({ to: '/login', search: { redirect: location.href } });
+    }
+  },
+  component: AppShell,
+});
 
 const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => signedInRoute,
   path: '/',
   beforeLoad: () => {
     throw redirect({ to: '/employees' });
@@ -21,23 +57,33 @@ const indexRoute = createRoute({
 });
 
 const employeesRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => signedInRoute,
   path: '/employees',
   component: EmployeesPage,
 });
 
 const insightsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => signedInRoute,
   path: '/insights',
   component: InsightsPage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, employeesRoute, insightsRoute]);
+const routeTree = rootRoute.addChildren([
+  loginRoute,
+  signedInRoute.addChildren([indexRoute, employeesRoute, insightsRoute]),
+]);
 
 /** Tests pass a memory history; the browser uses the default. */
-export function createAppRouter({ history }: { history?: RouterHistory } = {}) {
+export function createAppRouter({
+  queryClient,
+  history,
+}: {
+  queryClient: QueryClient;
+  history?: RouterHistory;
+}) {
   return createRouter({
     routeTree,
+    context: { queryClient },
     defaultViewTransition: { types: pageTransitionTypes },
     ...(history ? { history } : {}),
   });
