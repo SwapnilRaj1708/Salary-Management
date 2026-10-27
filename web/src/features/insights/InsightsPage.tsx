@@ -24,8 +24,9 @@ export function InsightsPage() {
   const navigate = route.useNavigate();
   const byCountry = useInsightsByCountry();
   const asOf = byCountry.data?.fx.asOf ?? FX_AS_OF;
+  // The choices sit far down the page; a navigation would otherwise scroll to the top.
   const setSearch = (changes: Partial<InsightsSearch>) =>
-    navigate({ search: (prev) => ({ ...prev, ...changes }), replace: true });
+    navigate({ search: (prev) => ({ ...prev, ...changes }), replace: true, resetScroll: false });
 
   const items = byCountry.data?.items ?? [];
   const headcount = items.reduce((sum, row) => sum + row.headcount, 0);
