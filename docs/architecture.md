@@ -565,7 +565,11 @@ don't share memory.
 - Turso's free plan counts every row a query scans. An Insights page load costs roughly
   50,000 row reads, so the monthly allowance covers about 10,000 loads (decision P3).
 - The directory uses server-side paging (the Data Grid in server mode), so the browser
-  only ever holds one page of at most 100 rows.
+  only ever holds one page of at most 100 rows. The count and the page go to the database
+  as one read batch. Locally, on the 10,000-employee seed, a list request took 7–52 ms
+  (S6).
+- Built bundles (S6): the main chunk is 206 KB gzip and the lazy directory chunk, with the
+  Data Grid, 162 KB gzip.
 - The heavy routes are lazy-loaded: the directory (Data Grid) and Insights (charts). In a
   probe, everything together was about 425 KB gzip, and React plus MUI core about 164 KB.
 - The UI keeps the previous page visible while the next one loads, and search waits

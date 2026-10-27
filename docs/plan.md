@@ -26,7 +26,7 @@ Estimates are focused hours.
 | **S3 Money** ✅ | `parseMoney` / `formatMoney` and the currency table in `shared/` | Decimal places 0/2/3, rejects extra decimals, zero, negatives and non-numbers, Indian digit grouping, JPY formatting | 1.5 h |
 | **S4 Data + seed** ✅ | `@libsql/client`; schema migration with every table, including `users` and `sessions` (salary history references users); migration runner with `schema_migrations`; startup preparation (architecture §10); reference sync; FX view; deterministic generator; seed CLI writing in batches; `npm run db:check`; the manual **Database** workflow and the daily Cron call. **Checked on a real Turso database** with `db:check`, run by that workflow: foreign keys enforced (if not, triggers enforce the references); a failing batch rolls back; two writers at once both succeed; constraint errors carry `SQLITE_CONSTRAINT` and the constraint name over HTTP; seed time over the network. *Done 27 Oct:* `db:check` passed all six checks on both Turso databases; seeding took 11.0 s (preview) and 4.9 s (production) from GitHub Actions. | Bad dates rejected by CHECK; view converts JPY, INR and KWD correctly; migrations run once even when started twice; same seed gives the same org; seed invariants (10,000 rows, every row passes the database constraints, cached salary = latest history row) | 3 h |
 | **S5 Auth** ✅ | HR-user provisioning, scrypt, login/logout/me, `requireAuth`, login page and route guard. On the deployed URL, login sets the cookie and `/auth/me` then returns 200. | 401 without a session; cookie flags; same error for wrong email or password; logout and expiry (fixed clock) | 2 h |
-| **S6 Directory** ⭐ | Query builder, list endpoint, employee directory on MUI X Data Grid in server mode (lazy-loaded route), with filters, search, sort and paging in the URL. **First demoable deploy.** | LIKE wildcards escaped; unknown sort → 400; USD sort orders mixed currencies; stable pages; default status = active | 3 h |
+| **S6 Directory** ⭐ ✅ | Query builder, list endpoint, employee directory on MUI X Data Grid in server mode (lazy-loaded route), with filters, search, sort and paging in the URL. **First demoable deploy.** | LIKE wildcards escaped; unknown sort → 400; USD sort orders mixed currencies; stable pages; default status = active | 3 h |
 | **S7 Records** | Detail with history, create, edit, salary change, mark as left (API and UI) | Each rule in architecture §8; salary change is atomic; triggers reject an out-of-order change and a change for a leaver even when the service check is skipped; leavers read-only; duplicate email → 409 | 3.5 h |
 | **S8 Insights** | `percentile` and `histogram` (pure), 4 endpoints, Insights page (MUI tables, MUI X Charts bar charts, lazy-loaded route) | Excel fixtures (`[1,2,10]` → P90 = 8.4; median of an even count); nice bucket widths with empty bins kept; exact numbers on a hand-built fixture; leavers excluded | 3 h |
 | **S9 Export** | CSV escaping and the export endpoint and button | Quoting, formula-injection prefix, numbers left raw, BOM, filters respected | 1 h |
@@ -66,7 +66,9 @@ metrics, CSV export, domain and API tests, the 10,000-row seed, the video, AI no
 - Test-data builders (e.g. `anEmployee().inCountry('JP').build()`) keep tests readable:
   one behaviour per test, named like a sentence.
 - Targets: the whole suite under 10 s, unit tests under 1 s. Coverage is reported in the
-  README, not enforced.
+  README, not enforced. Since S6 the suite misses the first target: the web project takes
+  about 17 s, most of it rendering the Data Grid in jsdom. The API project takes about
+  5 s and the shared one under 1 s.
 
 ## Commit conventions
 
