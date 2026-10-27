@@ -12,6 +12,9 @@ import { employeesService } from './employees/service.ts';
 import { errorHandler } from './http/errors.ts';
 import { healthRouter } from './http/health.ts';
 import { requireAuth } from './http/requireAuth.ts';
+import { insightsRepository } from './insights/repository.ts';
+import { insightsRouter } from './insights/routes.ts';
+import { insightsService } from './insights/service.ts';
 
 export type AppDeps = {
   config: {
@@ -70,6 +73,13 @@ export function buildApp({
     employeesRouter({
       employees,
       service: employeesService({ repo: employees, clock, timeZone: config.timeZone ?? 'UTC' }),
+      requireAuth: requireAuth(auth),
+    }),
+  );
+  app.use(
+    '/api',
+    insightsRouter({
+      insights: insightsService(insightsRepository(db)),
       requireAuth: requireAuth(auth),
     }),
   );
