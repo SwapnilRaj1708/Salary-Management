@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMoney, parseMoney } from './money.ts';
+import { amountAsDecimal, formatMoney, parseMoney } from './money.ts';
 
 describe('parseMoney', () => {
   it.each([
@@ -129,6 +129,18 @@ describe('formatMoney', () => {
     );
     expect(formatMoney({ amountMinor: 250_000_000, currency: 'INR' }, { compact: true })).toBe(
       '₹25L',
+    );
+  });
+});
+
+describe('amountAsDecimal', () => {
+  it('writes an amount in major units with the currency decimals, without float maths', () => {
+    expect(amountAsDecimal({ amountMinor: 9_000_050, currency: 'USD' })).toBe('90000.50');
+    expect(amountAsDecimal({ amountMinor: 9_000_000, currency: 'JPY' })).toBe('9000000');
+    expect(amountAsDecimal({ amountMinor: 16_545_799, currency: 'KWD' })).toBe('16545.799');
+    expect(amountAsDecimal({ amountMinor: 5, currency: 'USD' })).toBe('0.05');
+    expect(amountAsDecimal({ amountMinor: 900_719_925_474_099, currency: 'USD' })).toBe(
+      '9007199254740.99',
     );
   });
 });

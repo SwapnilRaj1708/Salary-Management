@@ -38,6 +38,11 @@ export function parseMoney(input: string, minorUnit: MinorUnit): ParseMoneyResul
   return { ok: true, amountMinor };
 }
 
+/** The amount in major units as a plain decimal, such as "90000.50". Not implemented yet. */
+export function amountAsDecimal(_money: Money): string {
+  throw new Error('Not implemented');
+}
+
 /**
  * Writes an amount for display, with the decimals from our currency table. Intl gets an
  * exact decimal string, never `amountMinor / 100`: dividing loses cents on large amounts.

@@ -38,6 +38,7 @@ export {
   PERCENTILE_KEYS,
 } from './contracts/insights.ts';
 export {
+  amountAsDecimal,
   formatMoney,
   type Money,
   type ParseMoneyError,
