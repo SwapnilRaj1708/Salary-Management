@@ -1,14 +1,19 @@
 import type { z } from 'zod';
 
+export type FieldError = { path: string; message: string };
+
 /** A problem+json error from the API, with the machine-readable `code` the UI branches on. */
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
+  /** Per-field problems of a VALIDATION_FAILED response; empty otherwise. */
+  readonly errors: FieldError[];
 
-  constructor(status: number, code: string, detail: string) {
+  constructor(status: number, code: string, detail: string, errors: FieldError[] = []) {
     super(detail);
     this.status = status;
     this.code = code;
+    this.errors = errors;
   }
 }
 
@@ -43,8 +48,17 @@ async function sendRequest(path: string, method: string, body: unknown): Promise
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) {
-    const problem = (await res.json().catch(() => ({}))) as { code?: string; detail?: string };
-    throw new ApiError(res.status, problem.code ?? 'UNKNOWN', problem.detail ?? res.statusText);
+    const problem = (await res.json().catch(() => ({}))) as {
+      code?: string;
+      detail?: string;
+      errors?: FieldError[];
+    };
+    throw new ApiError(
+      res.status,
+      problem.code ?? 'UNKNOWN',
+      problem.detail ?? res.statusText,
+      Array.isArray(problem.errors) ? problem.errors : [],
+    );
   }
   return res;
 }

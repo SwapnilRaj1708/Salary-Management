@@ -1,10 +1,15 @@
 import {
   type AuthUser,
+  type CreateEmployeeRequest,
+  EmployeeDetail,
   type EmployeeFilters,
   EmployeeListResponse,
+  type LeaveRequest,
   type LoginRequest,
   MeResponse,
   ReferenceDataResponse,
+  type SalaryChangeRequest,
+  type UpdateEmployeeRequest,
 } from '@salary/shared';
 import {
   keepPreviousData,
@@ -99,6 +104,48 @@ export function useReferenceData() {
     staleTime: Number.POSITIVE_INFINITY,
   });
 }
+
+/** One employee with their salary history. */
+export const employeeQuery = (id: number) =>
+  queryOptions({
+    queryKey: ['employee', id],
+    queryFn: () => api(`/employees/${id}`, EmployeeDetail),
+  });
+
+/**
+ * After a write, the detail cache takes the response and every directory page is marked
+ * stale, so the list shows the change the next time it is seen.
+ */
+function useEmployeeWrite<Input>(write: (input: Input) => Promise<EmployeeDetail>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: write,
+    onSuccess: (employee) => {
+      queryClient.setQueryData(employeeQuery(employee.id).queryKey, employee);
+      void queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+  });
+}
+
+export const useCreateEmployee = () =>
+  useEmployeeWrite((body: CreateEmployeeRequest) =>
+    api('/employees', EmployeeDetail, { method: 'POST', body }),
+  );
+
+export const useUpdateEmployee = (id: number) =>
+  useEmployeeWrite((body: UpdateEmployeeRequest) =>
+    api(`/employees/${id}`, EmployeeDetail, { method: 'PATCH', body }),
+  );
+
+export const useChangeSalary = (id: number) =>
+  useEmployeeWrite((body: SalaryChangeRequest) =>
+    api(`/employees/${id}/salary-changes`, EmployeeDetail, { method: 'POST', body }),
+  );
+
+export const useMarkLeft = (id: number) =>
+  useEmployeeWrite((body: LeaveRequest) =>
+    api(`/employees/${id}/leave`, EmployeeDetail, { method: 'POST', body }),
+  );
 
 function toQueryString(filters: EmployeeFilters): string {
   const params = new URLSearchParams();

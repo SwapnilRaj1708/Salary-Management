@@ -101,6 +101,26 @@ describe('employee directory', () => {
     expect(await (await grid()).findByText('Ada Lovelace')).toBeVisible();
   });
 
+  it("opens an employee's page from their name", async () => {
+    const user = userEvent.setup();
+    const { router } = renderApp('/employees');
+
+    await user.click(await (await grid()).findByRole('link', { name: 'Haruto Sato' }));
+
+    expect(await screen.findByRole('heading', { name: 'Haruto Sato' })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/employees/2');
+  });
+
+  it('goes to the new-employee form from Add employee', async () => {
+    const user = userEvent.setup();
+    const { router } = renderApp('/employees');
+
+    await user.click(await screen.findByRole('link', { name: 'Add employee' }));
+
+    expect(await screen.findByRole('heading', { name: 'Add employee' })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/employees/new');
+  });
+
   it('marks the grid busy while a page is loading, for assistive technology', async () => {
     renderApp('/employees');
 

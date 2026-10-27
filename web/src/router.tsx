@@ -70,6 +70,31 @@ const employeesRoute = createRoute({
   ),
 });
 
+const newEmployeeRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/employees/new',
+  component: lazyRouteComponent(
+    () => import('./features/employees/NewEmployeePage.tsx'),
+    'NewEmployeePage',
+  ),
+});
+
+const employeeRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/employees/$employeeId',
+  // A malformed id becomes NaN, which the page shows as "no employee with this id".
+  params: {
+    parse: ({ employeeId }) => ({
+      employeeId: /^\d+$/.test(employeeId) ? Number(employeeId) : Number.NaN,
+    }),
+    stringify: ({ employeeId }) => ({ employeeId: String(employeeId) }),
+  },
+  component: lazyRouteComponent(
+    () => import('./features/employees/EmployeeDetailPage.tsx'),
+    'EmployeeDetailPage',
+  ),
+});
+
 const insightsRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: '/insights',
@@ -78,7 +103,13 @@ const insightsRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  signedInRoute.addChildren([indexRoute, employeesRoute, insightsRoute]),
+  signedInRoute.addChildren([
+    indexRoute,
+    employeesRoute,
+    newEmployeeRoute,
+    employeeRoute,
+    insightsRoute,
+  ]),
 ]);
 
 /** Tests pass a memory history; the browser uses the default. */

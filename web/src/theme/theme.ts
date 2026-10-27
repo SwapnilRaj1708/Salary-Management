@@ -1,5 +1,6 @@
 import { createTheme, type Theme } from '@mui/material/styles';
 import type {} from '@mui/x-data-grid/themeAugmentation';
+import type {} from '@mui/x-date-pickers/themeAugmentation';
 
 // Two Material 3 easings for our own enter/exit motion (docs/design-system.md §4).
 declare module '@mui/material/styles' {
@@ -47,9 +48,17 @@ export function createAppTheme({
         defaultProps: { disableRowSelectionOnClick: true },
         styleOverrides: { root: { fontVariantNumeric: 'tabular-nums' } },
       },
+      // The picker's calendar transitions ignore theme.motion (docs/design-system.md §4).
+      MuiDatePicker: { defaultProps: { reduceAnimations: reducedMotion === 'always' } },
     },
   });
 }
 
 /** Longest duration allowed for feedback motion (docs/design-system.md §4). */
 export const MOTION_CEILING_MS = 375;
+
+/**
+ * How long a new salary-history row keeps its highlight. Colour only, no movement, so it
+ * is the one duration outside `theme.transitions` (docs/design-system.md §4).
+ */
+export const highlightFadeMs = 1000;

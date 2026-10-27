@@ -16,9 +16,11 @@
     "@mui/icons-material": "9.5.0",
     "@mui/material": "9.5.0",
     "@mui/x-data-grid": "9.15.0",
+    "@mui/x-date-pickers": "9.15.0",
     "@salary/shared": "0.0.0",
     "@tanstack/react-query": "5.104.2",
     "@tanstack/react-router": "1.170.45",
+    "dayjs": "1.11.23",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "zod": "4.6.7"
