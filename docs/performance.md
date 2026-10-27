@@ -20,8 +20,56 @@ time, the way a browser would: the full response body is read before the clock s
 
 ## Deployed
 
-*To be measured with the Performance workflow (S10); the agent's sandbox can't reach
-`*.vercel.app`.*
+Measured on 27 Oct 2026 with the Performance workflow
+([run 2](https://github.com/SwapnilRaj1708/Salary-Management/actions/runs/40585310083)),
+from a GitHub-hosted runner against https://salary-management-topaz.vercel.app at commit
+`09e86cb`: the Vercel Function and the production Turso database (both in
+`aws-us-east-1`), with the 10,000-employee seed.
+
+**Every list and insights request meets the target**: the slowest p95 is 249 ms
+(insights by country).
+
+| Request | n | p50 | p95 | max | app p50 | app p95 |
+|---|---|---|---|---|---|---|
+| Sign in (scrypt) | 5 | 490 ms | 645 ms | 662 ms | 372 ms | 464 ms |
+| Web app shell (`/`) | 30 | 29 ms | 40 ms | 77 ms | – | – |
+| Health (one query) | 30 | 115 ms | 132 ms | 152 ms | 7 ms | 13 ms |
+| Directory, first page | 30 | 123 ms | 138 ms | 163 ms | 20 ms | 29 ms |
+| Directory, search | 30 | 129 ms | 165 ms | 177 ms | 22 ms | 34 ms |
+| Directory, filter + USD sort + page 3 | 30 | 122 ms | 177 ms | 202 ms | 18 ms | 26 ms |
+| Employee detail | 30 | 126 ms | 158 ms | 199 ms | 17 ms | 26 ms |
+| Insights: by country | 30 | 206 ms | 249 ms | 275 ms | 102 ms | 141 ms |
+| Insights: by job title | 30 | 125 ms | 147 ms | 154 ms | 21 ms | 32 ms |
+| Insights: by department | 30 | 130 ms | 162 ms | 184 ms | 24 ms | 54 ms |
+| Insights: distribution | 30 | 127 ms | 161 ms | 207 ms | 23 ms | 37 ms |
+| CSV export, all 10,000 | 5 | 782 ms | 825 ms | 836 ms | 408 ms | 432 ms |
+
+What the numbers say:
+
+- **Most of each request is outside the app.** The health check spends 7 ms in the app
+  but 115 ms in total: the network from the runner, Vercel's routing and the function
+  invocation. The app's own share of a directory page or an insight is 20–30 ms, mostly
+  the round trip to Turso.
+- **Cold start:** the run's first request landed on a fresh instance. It took 1,535 ms in
+  total, 264 ms of it in the app, which is the one-off database preparation (migrations
+  check, reference data, HR user). The rest is Vercel starting the function. Later
+  requests on that instance were warm.
+- **By country is the slowest read** (app p95 141 ms): it reads every active salary,
+  sorted, to take each country's median in TypeScript. It is still inside the target; if
+  it ever isn't, the first step is to cache it behind a counter that every write
+  increments (architecture §11).
+- **Sign-in** costs about a third of a second in the app on purpose: scrypt with OWASP's
+  parameters (decision D9).
+- **The full export** of 10,000 rows (1.34 MB) takes about 0.8 s, half of it building the
+  CSV in memory (decision X5).
+
+Not measured: browser rendering time, and concurrent load. These are one client's
+sequential requests.
+
+**Turso quota.** The free plan allows 500 million row reads a month (decision P3). A
+directory page reads about 10,000 rows (the count plus the page from the
+`employee_salaries` view), and an Insights page load about 50,000. The production
+database's monthly usage is on the Turso dashboard.
 
 ## Locally, for comparison
 
