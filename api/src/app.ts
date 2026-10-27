@@ -1,12 +1,23 @@
 import express, { type Express } from 'express';
+import type { ScryptParams } from './auth/password.ts';
 import type { Db } from './db/client.ts';
 import { onceUntilSuccess, prepareDatabase } from './db/prepare.ts';
+import type { Clock } from './domain/clock.ts';
 import { errorHandler } from './http/errors.ts';
 import { healthRouter } from './http/health.ts';
 
 export type AppDeps = {
-  config: { version: string };
+  config: {
+    version: string;
+    /** Whether the session cookie is `Secure`: from config, not from `req.secure`. */
+    cookieSecure?: boolean;
+    /** The HR user to create at startup if no user has this email. */
+    admin?: { email: string; password: string };
+  };
   db: Db;
+  clock?: Clock;
+  /** scrypt cost for the HR user's password; tests pass cheaper ones. */
+  passwordParams?: ScryptParams;
   /** Brings the database up to date on the first request; tests replace it to simulate failure. */
   prepare?: (db: Db) => Promise<void>;
 };

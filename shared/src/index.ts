@@ -1,3 +1,4 @@
+export { AuthUser, LoginRequest, MeResponse } from './contracts/auth.ts';
 export { HealthResponse } from './contracts/health.ts';
 export {
   formatMoney,
