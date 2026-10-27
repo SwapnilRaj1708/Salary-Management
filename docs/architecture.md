@@ -593,6 +593,9 @@ don't share memory.
   Data Grid, 162 KB gzip. In S8 the build splits shared MUI code into its own chunks: the
   entry is 91 KB gzip plus a 129 KB form-components chunk the login page needs, the
   directory 135 KB, Insights (with X Charts) 91 KB and the date picker 47 KB.
+- CSV export (S9), locally: all 10,000 employees came to 1.34 MB in about 0.26 s, built in
+  memory (decision X5). Each row has local salary as a plain decimal in its currency and
+  USD to the cent, so the file sums correctly in Excel.
 - Insights (S8), locally on the 10,000-employee seed: by job title, by department and a
   distribution took 10–45 ms. By country took 60–130 ms warm and 274 ms on the first call:
   it reads every active salary, sorted, to take each country's median in TypeScript.
