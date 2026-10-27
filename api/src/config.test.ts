@@ -2,12 +2,39 @@ import { describe, expect, it } from 'vitest';
 import { loadConfig } from './config.ts';
 
 describe('loadConfig', () => {
-  it('defaults to port 3000, version "dev" and a local database file when nothing is set', () => {
+  it('defaults to port 3000, version "dev", a local database file and the demo login', () => {
     expect(loadConfig({})).toEqual({
       port: 3000,
       version: 'dev',
       database: { url: 'file:data/local.db', authToken: undefined },
+      admin: { email: 'admin@acme.example', password: 'local-demo-password' },
+      cookieSecure: false,
     });
+  });
+
+  it('reads the HR login from ADMIN_EMAIL and ADMIN_PASSWORD', () => {
+    expect(loadConfig({ ADMIN_EMAIL: 'hr@acme.example', ADMIN_PASSWORD: 's3cret' }).admin).toEqual({
+      email: 'hr@acme.example',
+      password: 's3cret',
+    });
+  });
+
+  it('refuses to start on a Vercel deployment without the HR login', () => {
+    const env = { VERCEL_ENV: 'production', TURSO_DATABASE_URL: 'libsql://db.turso.io' };
+
+    expect(() => loadConfig(env)).toThrow(/ADMIN_EMAIL/);
+    expect(() => loadConfig({ ...env, ADMIN_EMAIL: 'a@b.c' })).toThrow(/ADMIN_PASSWORD/);
+  });
+
+  it('marks the session cookie Secure on Vercel deployments, which are always HTTPS', () => {
+    const env = {
+      VERCEL_ENV: 'preview',
+      TURSO_DATABASE_URL: 'libsql://db.turso.io',
+      ADMIN_EMAIL: 'a@b.c',
+      ADMIN_PASSWORD: 'x',
+    };
+
+    expect(loadConfig(env).cookieSecure).toBe(true);
   });
 
   it('reads the port and the deployed commit from the environment', () => {
@@ -39,7 +66,9 @@ describe('loadConfig', () => {
   it.each(['production', 'preview'])(
     'refuses to start on a Vercel %s deployment without a database URL',
     (vercelEnv) => {
-      expect(() => loadConfig({ VERCEL_ENV: vercelEnv })).toThrow(/TURSO_DATABASE_URL/);
+      expect(() =>
+        loadConfig({ VERCEL_ENV: vercelEnv, ADMIN_EMAIL: 'a@b.c', ADMIN_PASSWORD: 'x' }),
+      ).toThrow(/TURSO_DATABASE_URL/);
     },
   );
 

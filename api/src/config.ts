@@ -21,6 +21,8 @@ export type Config = {
   port: number;
   version: string;
   database: DbConfig;
+  admin: { email: string; password: string };
+  cookieSecure: boolean;
 };
 
 /** Without a configured database, local runs use this file (relative to the api folder). */
@@ -41,5 +43,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       url: parsed.TURSO_DATABASE_URL ?? LOCAL_DATABASE_URL,
       authToken: parsed.TURSO_AUTH_TOKEN,
     },
+    admin: { email: '', password: '' },
+    cookieSecure: false,
   };
 }
