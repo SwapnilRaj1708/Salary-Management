@@ -7,8 +7,9 @@ and to answer "how do we pay people?". This is a take-home assessment for Incuby
 > `Password@123`, published on purpose for reviewers. Changes are saved and shared by
 > everyone using the demo, and re-running the seed restores the starting data.
 >
-> **Video:** a 4-minute walkthrough, following [docs/demo-script.md](docs/demo-script.md).
-> *Link to be added.*
+> **Video:** [a 2:39 walkthrough](https://drive.google.com/file/d/1YPJtjKCh5Z_a4nAyP_f97pENJ1pX6tB2/view?usp=sharing)
+> of the directory, the export, employee records and Insights, with captions instead of a
+> voice-over. [docs/demo-script.md](docs/demo-script.md) says how it was made.
 
 ## What it does
 
@@ -64,13 +65,13 @@ Other scripts:
 | How changes reach `main` | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Trade-offs and decisions | [docs/decisions.md](docs/decisions.md) |
 | Performance considerations | [docs/architecture.md §11](docs/architecture.md#11-performance-considerations), measured numbers in [docs/performance.md](docs/performance.md) |
-| Demo video script | [docs/demo-script.md](docs/demo-script.md) |
+| Demo video: how it was made, and its script | [docs/demo-script.md](docs/demo-script.md) |
 | AI prompts and workflow | [docs/ai/](docs/ai/README.md), [CLAUDE.md](CLAUDE.md) |
 
 ## Tests
 
-407 tests run in CI on every pull request (`npm run verify`): 94 in `shared`, 240 in
-`api`, 73 in `web`. Coverage is 96% of statements and 85% of branches
+408 tests run in CI on every pull request (`npm run verify`): 94 in `shared`, 240 in
+`api`, 74 in `web`. Coverage is 96% of statements and 85% of branches
 (`npx vitest run --coverage`); it is reported, not enforced.
 
 - Domain and API behaviour were written test first: each feature has a `test:` commit

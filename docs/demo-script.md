@@ -1,8 +1,29 @@
-# Demo video script
+# Demo video
 
-About four minutes, recorded on the live site with the published demo login. The story
-follows Priya, ACME's HR manager, through one morning that used to take a spreadsheet and
-a currency converter. Speak to what each step answers, not to the code.
+[The walkthrough](https://drive.google.com/file/d/1YPJtjKCh5Z_a4nAyP_f97pENJ1pX6tB2/view?usp=sharing)
+(2:39, 1080p) follows the script below in a shorter cut, with captions and music instead
+of a voice-over: sign-in; the directory's search, filters, sort, shareable URL and export;
+a promotion, the salary rules, a leaver and a new hire in Japan; Insights; and how it is
+built. At the candidate's request, the coding agent made it from the app itself:
+
+- **Capture.** A Playwright script took each step in the app and saved screenshots at
+  twice the video's resolution, with the cursor path, clicks and keystrokes. It ran
+  against a local copy of the app with the same 10,000-employee seed, because the agent's
+  sandbox can't reach the live site.
+- **Compositing.** An HTML stage replays that record: it draws the browser window, address
+  bar included, plus the cursor, camera moves, highlights and captions. Headless Chromium
+  renders each frame and ffmpeg encodes them at 60 fps.
+- **Sound.** The music and interface sounds are synthesized from the same timeline, then
+  mastered to about −16 LUFS.
+
+Those scripts are not part of this repository.
+
+## Script
+
+Written for a narrated recording. About four minutes, recorded on the live site with the
+published demo login. The story follows Priya, ACME's HR manager, through one morning
+that used to take a spreadsheet and a currency converter. Speak to what each step
+answers, not to the code.
 
 Before recording: run **Actions → Database → seed** on production, so the numbers match
 this script's starting state, and close other tabs so the URL bar is readable.
