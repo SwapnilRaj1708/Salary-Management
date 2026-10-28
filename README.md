@@ -70,8 +70,8 @@ Other scripts:
 
 ## Tests
 
-407 tests run in CI on every pull request (`npm run verify`): 94 in `shared`, 240 in
-`api`, 73 in `web`. Coverage is 96% of statements and 85% of branches
+408 tests run in CI on every pull request (`npm run verify`): 94 in `shared`, 240 in
+`api`, 74 in `web`. Coverage is 96% of statements and 85% of branches
 (`npx vitest run --coverage`); it is reported, not enforced.
 
 - Domain and API behaviour were written test first: each feature has a `test:` commit
